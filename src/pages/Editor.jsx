@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Undo2, Redo2, Minus, Plus, Save, History, Download, Share2, Play, MoreHorizontal, Edit2, Loader2, ArrowLeft } from 'lucide-react';
+import { Undo2, Redo2, Minus, Plus, Save, Download, Play, Edit2, Loader2, ArrowLeft } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import MapCanvas from '@/components/editor/MapCanvas.jsx';
 import ElementsPanel from '@/components/editor/ElementsPanel';
@@ -124,6 +124,7 @@ export default function Editor() {
   const [editingTitle, setEditingTitle] = useState(false);
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [zoom, setZoom] = useState(1);
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -177,28 +178,41 @@ export default function Editor() {
     setSaving(false);
   };
 
-  const pushHistory = (data) => {
+  const pushHistory = useCallback((data) => {
+    const snapshot = JSON.stringify(data);
     setHistory(prev => {
       const newHist = prev.slice(0, historyIndex + 1);
-      newHist.push(JSON.stringify(data));
-      return newHist.slice(-30); // keep last 30 states
+      newHist.push(snapshot);
+      return newHist.slice(-50);
     });
-    setHistoryIndex(prev => Math.min(prev + 1, 29));
-  };
+    setHistoryIndex(prev => Math.min(prev + 1, 49));
+  }, [historyIndex]);
 
-  const handleUndo = () => {
+  const handleUndo = useCallback(() => {
     if (historyIndex <= 0) return;
     const newIndex = historyIndex - 1;
     setHistoryIndex(newIndex);
     setMapData(JSON.parse(history[newIndex]));
-  };
+    setSelectedNode(null);
+  }, [historyIndex, history]);
 
-  const handleRedo = () => {
+  const handleRedo = useCallback(() => {
     if (historyIndex >= history.length - 1) return;
     const newIndex = historyIndex + 1;
     setHistoryIndex(newIndex);
     setMapData(JSON.parse(history[newIndex]));
-  };
+    setSelectedNode(null);
+  }, [historyIndex, history]);
+
+  // Keyboard shortcuts Ctrl+Z / Ctrl+Y
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) { e.preventDefault(); handleUndo(); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); handleRedo(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [handleUndo, handleRedo]);
 
   const handleNodeUpdate = (updatedNode) => {
     setMapData(prev => {
@@ -239,6 +253,28 @@ export default function Editor() {
     a.download = `${title}.svg`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const handleDeleteNode = (nodeId) => {
+    setMapData(prev => {
+      const next = {
+        nodes: prev.nodes.filter(n => n.id !== nodeId),
+        connections: prev.connections.filter(c => c.from !== nodeId && c.to !== nodeId),
+      };
+      pushHistory(next);
+      return next;
+    });
+    setSelectedNode(null);
+  };
+
+  const handleDuplicateNode = (node) => {
+    const newNode = { ...node, id: `node_${Date.now()}`, x: node.x + 40, y: node.y + 40 };
+    setMapData(prev => {
+      const next = { ...prev, nodes: [...prev.nodes, newNode] };
+      pushHistory(next);
+      return next;
+    });
+    setSelectedNode(newNode);
   };
 
   const handleAddNode = (type, x, y) => {
@@ -323,11 +359,21 @@ export default function Editor() {
             </button>
           </div>
 
-          {/* Zoom display */}
-          <div className="flex items-center gap-1 px-2 py-1.5 border border-white/10 rounded-lg text-xs text-muted-foreground">
-            <Minus className="w-3 h-3" />
-            <span>100%</span>
-            <Plus className="w-3 h-3" />
+          {/* Zoom controls — synced with canvas */}
+          <div className="flex items-center gap-1 border border-white/10 rounded-lg overflow-hidden text-xs text-muted-foreground">
+            <button
+              onClick={() => setZoom(z => Math.max(0.2, +(z - 0.1).toFixed(2)))}
+              className="px-2 py-1.5 hover:bg-white/5 hover:text-white transition-colors"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="px-1 min-w-[40px] text-center select-none">{Math.round(zoom * 100)}%</span>
+            <button
+              onClick={() => setZoom(z => Math.min(3, +(z + 0.1).toFixed(2)))}
+              className="px-2 py-1.5 hover:bg-white/5 hover:text-white transition-colors"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
           </div>
 
           <button
@@ -338,17 +384,9 @@ export default function Editor() {
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             Salvar
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-muted-foreground hover:text-white transition-colors">
-            <History className="w-3.5 h-3.5" />
-            Histórico
-          </button>
           <button onClick={handleExportPNG} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-muted-foreground hover:text-white transition-colors">
             <Download className="w-3.5 h-3.5" />
             Exportar
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-muted-foreground hover:text-white transition-colors">
-            <Share2 className="w-3.5 h-3.5" />
-            Compartilhar
           </button>
           <button
             onClick={() => project?.id && navigate(`/apresentacao/${project.id}`)}
@@ -356,9 +394,6 @@ export default function Editor() {
           >
             <Play className="w-3.5 h-3.5" />
             Apresentar
-          </button>
-          <button className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition-colors">
-            <MoreHorizontal className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -378,6 +413,8 @@ export default function Editor() {
               onAddConnection={handleAddConnection}
               onDeleteConnection={handleDeleteConnection}
               svgRef={svgRef}
+              zoom={zoom}
+              onZoomChange={setZoom}
               onNodeMove={(nodeId, x, y) => {
                 setMapData(prev => ({
                   ...prev,
@@ -391,6 +428,8 @@ export default function Editor() {
         <InspectorPanel
           selectedNode={selectedNode}
           onUpdate={handleNodeUpdate}
+          onDelete={() => selectedNode && handleDeleteNode(selectedNode.id)}
+          onDuplicate={() => selectedNode && handleDuplicateNode(selectedNode)}
           onClose={() => setSelectedNode(null)}
         />
       </div>
