@@ -174,20 +174,28 @@ function NodeComponent({ node, connections, expandedIds, onExpand, onSelect, sel
         style={{ filter: `blur(${isSelected ? 8 : 4}px)` }}
       />
 
-      {/* Main rect — carries data-nodeid for drag detection */}
+      {/* Main rect */}
       <rect
         x={node.x - w/2} y={node.y - h/2}
         width={w} height={h} rx={8}
         fill={style.bg} stroke={style.border}
         strokeWidth={isSelected ? 2 : 1}
-        style={{ cursor: 'grab', filter: isSelected ? `drop-shadow(0 0 12px ${style.glow})` : `drop-shadow(0 0 4px ${style.glow})` }}
-        onClick={() => onSelect(node)}
-        data-nodeid={node.id}
+        style={{ filter: isSelected ? `drop-shadow(0 0 12px ${style.glow})` : `drop-shadow(0 0 4px ${style.glow})` }}
         className="node-expanded"
       />
 
       {/* Inner content based on element type */}
       <NodeContent node={node} style={style} />
+
+      {/* Invisible hit area — covers entire node for reliable drag + click */}
+      <rect
+        x={node.x - w/2} y={node.y - h/2}
+        width={w} height={h} rx={8}
+        fill="transparent"
+        style={{ cursor: 'grab' }}
+        onClick={() => onSelect(node)}
+        data-nodeid={node.id}
+      />
 
       {/* Expand button */}
       {hasHiddenChildren && (
@@ -265,22 +273,36 @@ export default function MapCanvas({ nodes, connections, onSelectNode, selectedNo
     setTransform(prev => ({ ...prev, scale: Math.max(0.3, Math.min(2.5, prev.scale + delta)) }));
   };
 
-  const handleMouseDown = (e) => {
-    const nodeId = e.target.getAttribute('data-nodeid');
-    if (nodeId) {
-      const node = nodes.find(n => n.id === nodeId);
-      if (node) {
-        const pos = screenToCanvas(e.clientX, e.clientY);
-        setDraggingNodeId(nodeId);
-        setDragNodeOffset({ dx: pos.x - node.x, dy: pos.y - node.y });
-        e.stopPropagation();
-        return;
+  const findNodeAtPos = (canvasX, canvasY) => {
+    // Search in reverse so top-rendered nodes (last in array) are hit first
+    for (let i = nodes.length - 1; i >= 0; i--) {
+      const node = nodes[i];
+      const style = getStyle(node);
+      const { w, h } = style;
+      if (
+        canvasX >= node.x - w / 2 &&
+        canvasX <= node.x + w / 2 &&
+        canvasY >= node.y - h / 2 &&
+        canvasY <= node.y + h / 2
+      ) {
+        return node;
       }
     }
-    if (e.target.tagName === 'svg' || e.target.getAttribute('fill') === 'transparent') {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    return null;
+  };
+
+  const handleMouseDown = (e) => {
+    const pos = screenToCanvas(e.clientX, e.clientY);
+    const node = findNodeAtPos(pos.x, pos.y);
+    if (node) {
+      setDraggingNodeId(node.id);
+      setDragNodeOffset({ dx: pos.x - node.x, dy: pos.y - node.y });
+      e.stopPropagation();
+      return;
     }
+    // Pan if clicking on empty canvas
+    setIsPanning(true);
+    setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
   };
 
   const handleMouseMove = (e) => {
