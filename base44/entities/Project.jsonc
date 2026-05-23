@@ -1,0 +1,64 @@
+{
+  "name": "Project",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Marketing",
+        "Vendas",
+        "Neg\u00f3cios",
+        "Educa\u00e7\u00e3o",
+        "Estrat\u00e9gia",
+        "An\u00e1lise",
+        "Produtividade",
+        "Criativo",
+        "Projetos",
+        "Desenvolvimento Pessoal",
+        "Conte\u00fado",
+        "Planejamento"
+      ]
+    },
+    "thumbnail": {
+      "type": "string"
+    },
+    "data_json": {
+      "type": "string",
+      "description": "JSON string with nodes and connections"
+    },
+    "is_favorite": {
+      "type": "boolean",
+      "default": false
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived",
+        "trash"
+      ],
+      "default": "active"
+    },
+    "map_type": {
+      "type": "string",
+      "enum": [
+        "mind_map",
+        "flowchart",
+        "funnel",
+        "hybrid",
+        "timeline",
+        "matrix"
+      ],
+      "default": "mind_map"
+    }
+  },
+  "required": [
+    "title"
+  ]
+}
