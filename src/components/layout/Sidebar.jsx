@@ -15,12 +15,16 @@ export default function Sidebar() {
   const location = useLocation();
 
   return (
-    <aside className="w-56 min-h-screen bg-[#0d0d0d] border-r border-white/5 flex flex-col">
+    <aside className="w-56 min-h-screen bg-[#070707] border-r border-white/5 flex flex-col relative overflow-hidden">
+      {/* Ambient glow top */}
+      <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-primary/8 to-transparent pointer-events-none" />
+      {/* Left edge glow */}
+      <div className="absolute top-0 left-0 bottom-0 w-px bg-gradient-to-b from-primary/40 via-primary/10 to-transparent pointer-events-none" />
       {/* Logo */}
       <div className="p-4 border-b border-white/5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center neon-border">
-            <Star className="w-4 h-4 text-primary" />
+          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/50 flex items-center justify-center glow-pulse">
+            <Star className="w-4 h-4 text-primary" fill="currentColor" />
           </div>
           <div>
             <div className="font-bold text-sm text-white">MAPA TÁTICO</div>
@@ -39,8 +43,8 @@ export default function Sidebar() {
               to={item.path}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
-                  ? 'bg-primary/15 text-primary border border-primary/30 neon-border'
-                  : 'text-muted-foreground hover:text-white hover:bg-white/5'
+                  ? 'sidebar-active text-primary'
+                  : 'text-muted-foreground hover:text-white hover:bg-white/5 hover:border hover:border-white/8'
               }`}
             >
               <item.icon className="w-4 h-4 flex-shrink-0" />

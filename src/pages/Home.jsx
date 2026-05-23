@@ -31,7 +31,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-cinematic">
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4 border-b border-white/5">
         <div />
@@ -51,7 +51,7 @@ export default function Home() {
 
       <div className="px-8 py-8 space-y-10">
         {/* Hero */}
-        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#0d0d0d] via-[#1a0505] to-[#0d0d0d] border border-white/5 p-8 min-h-[200px] flex items-center">
+        <div className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#0a0a0a] via-[#1a0303] to-[#0a0a0a] border border-primary/15 p-8 min-h-[200px] flex items-center card-glow">
           <div className="relative z-10 max-w-lg">
             <p className="text-white/60 text-sm mb-1">Bem-vindo de volta! 👋</p>
             <h1 className="text-3xl font-black text-white leading-tight mb-3">
@@ -64,7 +64,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => navigate('/projetos')}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-semibold text-sm hover:bg-primary/80 transition-all neon-glow group"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-white font-black text-sm hover:bg-red-600 transition-all neon-glow group relative overflow-hidden"
               >
                 <Plus className="w-4 h-4" />
                 Criar novo mapa
@@ -96,7 +96,12 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-orange-500/5 pointer-events-none" />
+          {/* Ambient lines */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+            <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-primary/20 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-primary/4 via-transparent to-orange-500/4" />
+          </div>
         </div>
 
         {/* Recent Projects */}
