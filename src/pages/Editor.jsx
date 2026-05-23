@@ -241,6 +241,14 @@ export default function Editor() {
     });
   };
 
+  const handleUpdateConnection = (index, patch) => {
+    setMapData(prev => {
+      const next = { ...prev, connections: prev.connections.map((c, i) => i === index ? { ...c, ...patch } : c) };
+      pushHistory(next);
+      return next;
+    });
+  };
+
   const handleExportPNG = () => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -412,6 +420,7 @@ export default function Editor() {
               onDropNode={handleAddNode}
               onAddConnection={handleAddConnection}
               onDeleteConnection={handleDeleteConnection}
+              onUpdateConnection={handleUpdateConnection}
               onDeleteNode={handleDeleteNode}
               svgRef={svgRef}
               zoom={zoom}

@@ -181,12 +181,22 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
       {isSelected && <rect x={node.x-w/2-3} y={node.y-h/2-3} width={w+6} height={h+6} rx={14} fill="none" stroke={style.border} strokeWidth={1.5} strokeOpacity={0.6} strokeDasharray="4 3" />}
       {isConnectingMode && <rect x={node.x-w/2-4} y={node.y-h/2-4} width={w+8} height={h+8} rx={15} fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 3" opacity={0.85} />}
       <NodeContent node={node} style={style} />
+      {/* Connect handles — both sides, discrete */}
       {hovered && !isConnectingMode && (
-        <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
-          <circle cx={node.x+w/2+13} cy={node.y} r={14} fill="transparent" />
-          <circle cx={node.x+w/2+13} cy={node.y} r={9} fill="#161616" stroke="#22c55e" strokeWidth={1.5} />
-          <text x={node.x+w/2+13} y={node.y+4.5} textAnchor="middle" fontSize={13} fill="#22c55e" fontWeight="bold" style={{ userSelect:'none' }}>+</text>
-        </g>
+        <>
+          {/* Right handle */}
+          <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
+            <circle cx={node.x+w/2+12} cy={node.y} r={12} fill="transparent" />
+            <circle cx={node.x+w/2+12} cy={node.y} r={7} fill="#111" stroke="#4ade80" strokeWidth={1} strokeOpacity={0.7} />
+            <text x={node.x+w/2+12} y={node.y+3.5} textAnchor="middle" fontSize={10} fill="#4ade80" fillOpacity={0.85} style={{ userSelect:'none' }}>+</text>
+          </g>
+          {/* Left handle */}
+          <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
+            <circle cx={node.x-w/2-12} cy={node.y} r={12} fill="transparent" />
+            <circle cx={node.x-w/2-12} cy={node.y} r={7} fill="#111" stroke="#4ade80" strokeWidth={1} strokeOpacity={0.7} />
+            <text x={node.x-w/2-12} y={node.y+3.5} textAnchor="middle" fontSize={10} fill="#4ade80" fillOpacity={0.85} style={{ userSelect:'none' }}>+</text>
+          </g>
+        </>
       )}
     </g>
   );
@@ -208,6 +218,8 @@ function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onCont
   const dx = Math.abs(x2-x1)*0.5;
   const path = `M ${x1} ${y1} C ${x1+(goRight?dx:-dx)} ${y1}, ${x2+(goRight?-dx:dx)} ${y2}, ${x2} ${y2}`;
   const color = conn?.custom_color || from.custom_color || '#e53e3e';
+  const lineStyle = conn?.line_style || 'solid'; // 'solid' | 'dashed' | 'dotted'
+  const lineType = conn?.line_type || 'curve'; // 'curve' | 'straight' | 'arrow-only'
 
   // Midpoint t=0.5 on cubic bezier
   const cp1x = x1+(goRight?dx:-dx), cp2x = x2+(goRight?-dx:dx);
@@ -229,21 +241,26 @@ function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onCont
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e); }}
       />
-      {/* Outer glow */}
+      {/* Glow */}
       <path d={path} fill="none" stroke={color} strokeWidth={6} opacity={0.07} strokeLinecap="round" />
       {/* Main line */}
       <path d={path} fill="none" stroke={color} strokeWidth={isSelected?2.5:1.8}
         opacity={isSelected?1:hovered?0.9:0.7} strokeLinecap="round"
+        strokeDasharray={lineStyle==='dashed'?'10 6':lineStyle==='dotted'?'2 6':undefined}
         style={{ cursor:'pointer' }}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
       />
-      {/* Flow dash */}
-      <path d={path} fill="none" stroke="white" strokeWidth={1} opacity={0.15}
-        strokeDasharray="6 8" className="flow-line" strokeLinecap="round" />
-      {/* Arrowhead */}
-      <g transform={`translate(${x2},${y2}) rotate(${angle})`}>
-        <polygon points="-7,-3.5 0,0 -7,3.5" fill={color} opacity={0.9} />
-      </g>
+      {/* Animated flow dash — only on solid lines */}
+      {lineStyle === 'solid' && (
+        <path d={path} fill="none" stroke="white" strokeWidth={1} opacity={0.12}
+          strokeDasharray="6 8" className="flow-line" strokeLinecap="round" />
+      )}
+      {/* Arrowhead — hidden for arrow-only type (we draw a standalone arrow) */}
+      {lineType !== 'no-arrow' && (
+        <g transform={`translate(${x2},${y2}) rotate(${angle})`}>
+          <polygon points="-7,-3.5 0,0 -7,3.5" fill={color} opacity={0.9} />
+        </g>
+      )}
 
       {/* Trash: always visible on hover or selected — ONE CLICK deletes */}
       {showTrash && (
@@ -313,7 +330,7 @@ function Minimap({ nodes, transform, containerRef }) {
 // ─── MAIN CANVAS ─────────────────────────────────────────────────────────────
 export default function MapCanvas({
   nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
-  onAddConnection, onDeleteConnection, onDeleteNode, svgRef: externalSvgRef, zoom, onZoomChange
+  onAddConnection, onDeleteConnection, onDeleteNode, onUpdateConnection, svgRef: externalSvgRef, zoom, onZoomChange
 }) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
@@ -421,11 +438,12 @@ export default function MapCanvas({
     const minX = Math.min(...allX) - 120, maxX = Math.max(...allX) + 120;
     const minY = Math.min(...allY) - 80,  maxY = Math.max(...allY) + 80;
     const contentW = maxX - minX, contentH = maxY - minY;
-    const newScale = Math.min(cw/contentW, ch/contentH, 1.5);
-    const newX = cw/2 - (minX + contentW/2)*newScale;
-    const newY = ch/2 - (minY + contentH/2)*newScale;
-    setTransform({ x:newX, y:newY, scale:newScale });
-    onZoomChange?.(newScale);
+    const newScale = Math.min(cw/contentW, ch/contentH, 1);
+    const clampedScale = Math.min(newScale, 0.9); // target ~90%
+    const newX = cw/2 - (minX + contentW/2)*clampedScale;
+    const newY = ch/2 - (minY + contentH/2)*clampedScale;
+    setTransform({ x:newX, y:newY, scale:clampedScale });
+    onZoomChange?.(clampedScale);
   };
 
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
@@ -541,13 +559,46 @@ export default function MapCanvas({
         </div>
       )}
 
-      {/* Context menu — connection */}
+      {/* Context menu — connection: positioned right at cursor */}
       {contextMenu?.type === 'conn' && (
         <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[160px]"
-          style={{ left:contextMenu.x, top:contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-          <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/8 flex items-center gap-2"
+          style={{ left: Math.min(contextMenu.x, window.innerWidth - 180), top: Math.min(contextMenu.y, window.innerHeight - 60) }}
+          onClick={(e) => e.stopPropagation()}>
+          <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/10 flex items-center gap-2"
             onClick={() => { onDeleteConnection?.(contextMenu.idx); setSelectedConnIdx(null); setContextMenu(null); }}>
             🗑️ Apagar conexão
+          </button>
+        </div>
+      )}
+
+      {/* Connection style editor — shown when a connection is selected */}
+      {selectedConnIdx !== null && connections[selectedConnIdx] && (
+        <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[#161616] border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-4 z-20 shadow-2xl">
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Linha:</span>
+          {[{v:'solid',l:'Sólida'},{v:'dashed',l:'Tracejada'},{v:'dotted',l:'Pontilhada'}].map(opt => (
+            <button key={opt.v}
+              onClick={() => onUpdateConnection?.(selectedConnIdx, { line_style: opt.v })}
+              className={`px-2.5 py-1 rounded-lg text-[10px] transition-all ${
+                (connections[selectedConnIdx].line_style||'solid')===opt.v
+                  ? 'bg-primary/20 border border-primary/50 text-white'
+                  : 'bg-white/5 border border-white/10 text-muted-foreground hover:text-white'
+              }`}>{opt.l}</button>
+          ))}
+          <div className="w-px h-4 bg-white/10" />
+          <span className="text-[10px] text-muted-foreground">Seta:</span>
+          {[{v:'default',l:'Com seta'},{v:'no-arrow',l:'Sem seta'}].map(opt => (
+            <button key={opt.v}
+              onClick={() => onUpdateConnection?.(selectedConnIdx, { line_type: opt.v })}
+              className={`px-2.5 py-1 rounded-lg text-[10px] transition-all ${
+                (connections[selectedConnIdx].line_type||'default')===opt.v
+                  ? 'bg-primary/20 border border-primary/50 text-white'
+                  : 'bg-white/5 border border-white/10 text-muted-foreground hover:text-white'
+              }`}>{opt.l}</button>
+          ))}
+          <div className="w-px h-4 bg-white/10" />
+          <button onClick={() => { onDeleteConnection?.(selectedConnIdx); setSelectedConnIdx(null); }}
+            className="px-2.5 py-1 rounded-lg text-[10px] bg-red-950/40 border border-red-900/40 text-red-400 hover:bg-red-900/30">
+            🗑 Apagar
           </button>
         </div>
       )}
