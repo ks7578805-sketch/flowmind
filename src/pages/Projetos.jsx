@@ -43,8 +43,12 @@ export default function Projetos() {
 
   const filtered = projects.filter(p => {
     const matchSearch = p.title?.toLowerCase().includes(search.toLowerCase());
-    if (activeTab === 1) return matchSearch && p.status === 'active';
-    if (activeTab === 2) return matchSearch && p.is_favorite;
+    if (activeTab === 1) {
+      // Recentes: últimos 7 dias
+      const isRecent = p.updated_date && (Date.now() - new Date(p.updated_date).getTime()) < 7 * 24 * 3600000;
+      return matchSearch && p.status !== 'trash' && isRecent;
+    }
+    if (activeTab === 2) return matchSearch && p.is_favorite && p.status !== 'trash';
     if (activeTab === 3) return matchSearch && p.status === 'trash';
     return matchSearch && p.status !== 'trash';
   });

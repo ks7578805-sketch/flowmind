@@ -4,23 +4,21 @@ import { Search, SlidersHorizontal, Bookmark, Plus } from 'lucide-react';
 
 const CATEGORIES = ['Todos', 'Negócios', 'Marketing', 'Vendas', 'Educação', 'Desenvolvimento Pessoal', 'Projetos', 'Estratégia', 'Análise', 'Produtividade', 'Criativo'];
 
+// Templates — por enquanto são vitrines visuais. Em breve terão mapas prontos.
+// Para adicionar um mapa real a um template, adicione a propriedade `data_json`.
 const TEMPLATES = [
-  { id: 1, title: 'Funil de Marketing Completo', desc: 'Da atração à conversão com etapas detalhadas.', category: 'Marketing', gradient: 'from-red-900 via-red-800 to-orange-900', tags: ['Marketing'] },
-  { id: 2, title: 'Lançamento de Produto', desc: 'Mapa estratégico para lançar produtos digitais.', category: 'Negócios', gradient: 'from-orange-900 via-red-800 to-red-900', tags: ['Negócios'] },
-  { id: 3, title: 'Análise SWOT Pessoal', desc: 'Avalie forças, fraquezas, oportunidades e ameaças.', category: 'Desenvolvimento Pessoal', gradient: 'from-purple-900 via-purple-800 to-pink-900', tags: ['Desenvolvimento Pessoal'] },
-  { id: 4, title: 'Estratégia de Conteúdo', desc: 'Planejamento completo para multiplataforma.', category: 'Marketing', gradient: 'from-blue-900 via-blue-800 to-cyan-900', tags: ['Marketing'] },
-  { id: 5, title: 'Mapa Mental Criativo', desc: 'Organize ideias e conecte conceitos com liberdade.', category: 'Criativo', gradient: 'from-yellow-900 via-yellow-800 to-orange-900', tags: ['Criativo'] },
-  { id: 6, title: 'Linha do Tempo de Projetos', desc: 'Visualize eventos, marcos e entregas importantes.', category: 'Projetos', gradient: 'from-green-900 via-green-800 to-teal-900', tags: ['Projetos'] },
-  { id: 7, title: 'Pirâmide de Aprendizado', desc: 'Estruture conteúdos do básico ao avançado.', category: 'Educação', gradient: 'from-indigo-900 via-indigo-800 to-blue-900', tags: ['Educação'] },
-  { id: 8, title: 'Funil de Vendas', desc: 'Processo completo para gerar e fechar vendas.', category: 'Vendas', gradient: 'from-red-900 via-purple-900 to-pink-900', tags: ['Vendas'] },
-  { id: 9, title: 'Planejamento OKR', desc: 'Defina objetivos, resultados-chave e iniciativas.', category: 'Estratégia', gradient: 'from-teal-900 via-teal-800 to-cyan-900', tags: ['Estratégia'] },
-  { id: 10, title: 'Plano de Metas - 90 Dias', desc: 'Defina metas claras e acompanhe seu progresso.', category: 'Produtividade', gradient: 'from-pink-900 via-pink-800 to-rose-900', tags: ['Produtividade'] },
-  { id: 11, title: 'Comparativo de Opções', desc: 'Compare soluções e tome decisões melhores.', category: 'Análise', gradient: 'from-violet-900 via-violet-800 to-purple-900', tags: ['Análise'] },
-  { id: 12, title: 'Jornada do Cliente', desc: 'Entenda cada etapa da experiência do seu cliente.', category: 'Negócios', gradient: 'from-amber-900 via-amber-800 to-orange-900', tags: ['Negócios'] },
-  { id: 13, title: 'Facebook Ads - Criativos', desc: 'Por que você precisa de vários criativos.', category: 'Marketing', gradient: 'from-red-900 via-red-800 to-orange-900', tags: ['Marketing'] },
-  { id: 14, title: 'Análise SWOT Empresarial', desc: 'Pontos fortes, fracos, oportunidades e ameaças.', category: 'Análise', gradient: 'from-purple-900 via-purple-800 to-indigo-900', tags: ['Análise'] },
-  { id: 15, title: 'Mapa de Objetivos', desc: 'Visualize seus objetivos e o caminho para atingi-los.', category: 'Estratégia', gradient: 'from-cyan-900 via-cyan-800 to-blue-900', tags: ['Estratégia'] },
-  { id: 16, title: 'Criar do Zero', desc: 'Comece com uma tela em branco e crie livremente.', category: 'Criativo', gradient: 'from-gray-900 via-gray-800 to-gray-900', tags: ['Criativo'] },
+  { id: 1,  title: 'Funil de Marketing Completo', desc: 'Da atração à conversão com etapas detalhadas.', category: 'Marketing', gradient: 'from-red-900 via-red-800 to-orange-900', tags: ['Marketing'], comingSoon: true },
+  { id: 2,  title: 'Lançamento de Produto', desc: 'Mapa estratégico para lançar produtos digitais.', category: 'Negócios', gradient: 'from-orange-900 via-red-800 to-red-900', tags: ['Negócios'], comingSoon: true },
+  { id: 3,  title: 'Análise SWOT Pessoal', desc: 'Avalie forças, fraquezas, oportunidades e ameaças.', category: 'Desenvolvimento Pessoal', gradient: 'from-purple-900 via-purple-800 to-pink-900', tags: ['Desenvolvimento Pessoal'], comingSoon: true },
+  { id: 4,  title: 'Estratégia de Conteúdo', desc: 'Planejamento completo para multiplataforma.', category: 'Marketing', gradient: 'from-blue-900 via-blue-800 to-cyan-900', tags: ['Marketing'], comingSoon: true },
+  { id: 5,  title: 'Mapa Mental Criativo', desc: 'Organize ideias e conecte conceitos com liberdade.', category: 'Criativo', gradient: 'from-yellow-900 via-yellow-800 to-orange-900', tags: ['Criativo'], comingSoon: true },
+  { id: 6,  title: 'Linha do Tempo de Projetos', desc: 'Visualize eventos, marcos e entregas importantes.', category: 'Projetos', gradient: 'from-green-900 via-green-800 to-teal-900', tags: ['Projetos'], comingSoon: true },
+  { id: 7,  title: 'Pirâmide de Aprendizado', desc: 'Estruture conteúdos do básico ao avançado.', category: 'Educação', gradient: 'from-indigo-900 via-indigo-800 to-blue-900', tags: ['Educação'], comingSoon: true },
+  { id: 8,  title: 'Funil de Vendas', desc: 'Processo completo para gerar e fechar vendas.', category: 'Vendas', gradient: 'from-red-900 via-purple-900 to-pink-900', tags: ['Vendas'], comingSoon: true },
+  { id: 9,  title: 'Planejamento OKR', desc: 'Defina objetivos, resultados-chave e iniciativas.', category: 'Estratégia', gradient: 'from-teal-900 via-teal-800 to-cyan-900', tags: ['Estratégia'], comingSoon: true },
+  { id: 10, title: 'Plano de Metas - 90 Dias', desc: 'Defina metas claras e acompanhe seu progresso.', category: 'Produtividade', gradient: 'from-pink-900 via-pink-800 to-rose-900', tags: ['Produtividade'], comingSoon: true },
+  { id: 11, title: 'Comparativo de Opções', desc: 'Compare soluções e tome decisões melhores.', category: 'Análise', gradient: 'from-violet-900 via-violet-800 to-purple-900', tags: ['Análise'], comingSoon: true },
+  { id: 12, title: 'Jornada do Cliente', desc: 'Entenda cada etapa da experiência do seu cliente.', category: 'Negócios', gradient: 'from-amber-900 via-amber-800 to-orange-900', tags: ['Negócios'], comingSoon: true },
 ];
 
 export default function Modelos() {
@@ -108,8 +106,8 @@ export default function Modelos() {
         {filtered.map(template => (
           <div
             key={template.id}
-            onClick={() => navigate(`/editor?template=${template.id}`)}
-            className="group rounded-xl border border-white/8 overflow-hidden cursor-pointer hover:border-primary/40 transition-all card-glow"
+            className={`group rounded-xl border border-white/8 overflow-hidden transition-all card-glow ${template.comingSoon ? 'cursor-default opacity-75' : 'cursor-pointer hover:border-primary/40'}`}
+            onClick={() => !template.comingSoon && navigate(`/editor?template=${template.id}`)}
           >
             <div className={`relative h-44 bg-gradient-to-br ${template.gradient} overflow-hidden`}>
               <div className="absolute inset-0 flex items-center justify-center opacity-25">
@@ -120,12 +118,19 @@ export default function Modelos() {
                 ))}
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-              <button
-                onClick={e => toggleBookmark(template.id, e)}
-                className={`absolute top-3 right-3 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${bookmarked.has(template.id) ? 'bg-primary/30 text-primary' : 'bg-black/40 text-white/40 opacity-0 group-hover:opacity-100'}`}
-              >
-                <Bookmark className="w-3.5 h-3.5" fill={bookmarked.has(template.id) ? 'currentColor' : 'none'} />
-              </button>
+              {template.comingSoon && (
+                <div className="absolute top-3 left-3 bg-black/60 border border-white/20 text-[9px] font-bold text-white/70 px-2 py-0.5 rounded-full">
+                  Em breve
+                </div>
+              )}
+              {!template.comingSoon && (
+                <button
+                  onClick={e => toggleBookmark(template.id, e)}
+                  className={`absolute top-3 right-3 w-7 h-7 rounded-lg flex items-center justify-center transition-all ${bookmarked.has(template.id) ? 'bg-primary/30 text-primary' : 'bg-black/40 text-white/40 opacity-0 group-hover:opacity-100'}`}
+                >
+                  <Bookmark className="w-3.5 h-3.5" fill={bookmarked.has(template.id) ? 'currentColor' : 'none'} />
+                </button>
+              )}
             </div>
             <div className="p-4 bg-card">
               <h3 className="font-bold text-sm text-white">{template.title}</h3>

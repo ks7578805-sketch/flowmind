@@ -183,10 +183,15 @@ export default function Editor() {
   };
 
   const handleAddNode = (type, x, y) => {
+    const titleMap = {
+      title: 'Título', text: 'Texto', block: 'Bloco de texto',
+      image: 'Imagem', icon: 'Ícone', audio: 'Áudio', video: 'Vídeo', ai_text: 'Texto com IA',
+    };
     const newNode = {
       id: `node_${Date.now()}`,
-      title: type === 'title' ? 'Título' : type === 'text' ? 'Texto' : type === 'block' ? 'Bloco explicativo' : 'Novo Bloco',
+      title: titleMap[type] || 'Novo Bloco',
       description: '',
+      element_type: type,
       type: type === 'title' ? 'branch' : type === 'center' ? 'center' : 'leaf',
       x: x ?? (400 + Math.random() * 300),
       y: y ?? (250 + Math.random() * 200),
