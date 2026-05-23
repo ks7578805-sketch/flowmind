@@ -412,6 +412,7 @@ export default function Editor() {
               onDropNode={handleAddNode}
               onAddConnection={handleAddConnection}
               onDeleteConnection={handleDeleteConnection}
+              onDeleteNode={handleDeleteNode}
               svgRef={svgRef}
               zoom={zoom}
               onZoomChange={setZoom}
