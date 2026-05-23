@@ -46,8 +46,9 @@ function NodeComponent({ node, nodes, connections, expandedIds, onExpand, onSele
         fill={colors.bg}
         stroke={colors.border}
         strokeWidth={isSelected ? 2 : 1}
-        style={{ cursor: 'pointer', filter: isSelected ? `drop-shadow(0 0 12px ${colors.glow})` : `drop-shadow(0 0 4px ${colors.glow})` }}
+        style={{ cursor: 'grab', filter: isSelected ? `drop-shadow(0 0 12px ${colors.glow})` : `drop-shadow(0 0 4px ${colors.glow})` }}
         onClick={() => onSelect(node)}
+        data-nodeid={node.id}
         className="node-expanded"
       />
 
@@ -124,12 +125,21 @@ function ConnectionLine({ from, to, expandedIds }) {
   );
 }
 
-export default function MapCanvas({ nodes, connections, onSelectNode, selectedNodeId }) {
+export default function MapCanvas({ nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove }) {
   const [expandedIds, setExpandedIds] = useState(new Set(['root']));
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState(null);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState(null);
+  const [draggingNodeId, setDraggingNodeId] = useState(null);
+  const [dragNodeOffset, setDragNodeOffset] = useState(null);
   const svgRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Auto-reveal all nodes
+  useEffect(() => {
+    const allIds = new Set(nodes.map(n => n.id));
+    setExpandedIds(allIds);
+  }, [nodes.length]);
 
   const visibleNodes = nodes.filter(n => expandedIds.has(n.id));
 
@@ -153,32 +163,82 @@ export default function MapCanvas({ nodes, connections, onSelectNode, selectedNo
     }));
   };
 
+  // Convert screen coords to canvas coords
+  const screenToCanvas = (clientX, clientY) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 500, y: 350 };
+    return {
+      x: (clientX - rect.left - transform.x) / transform.scale,
+      y: (clientY - rect.top - transform.y) / transform.scale,
+    };
+  };
+
   const handleMouseDown = (e) => {
-    if (e.target.tagName === 'svg' || e.target.tagName === 'rect' && e.target.getAttribute('fill') === 'transparent') {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    // Check if clicking on a node rect (node dragging)
+    const nodeId = e.target.getAttribute('data-nodeid');
+    if (nodeId) {
+      const node = nodes.find(n => n.id === nodeId);
+      if (node) {
+        const canvasPos = screenToCanvas(e.clientX, e.clientY);
+        setDraggingNodeId(nodeId);
+        setDragNodeOffset({ dx: canvasPos.x - node.x, dy: canvasPos.y - node.y });
+        e.stopPropagation();
+        return;
+      }
+    }
+    // Pan canvas
+    if (e.target.tagName === 'svg' || e.target.getAttribute('fill') === 'transparent' || e.target.tagName === 'g') {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
     }
   };
 
   const handleMouseMove = (e) => {
-    if (isDragging && dragStart) {
+    if (draggingNodeId) {
+      const canvasPos = screenToCanvas(e.clientX, e.clientY);
+      onNodeMove?.(draggingNodeId, canvasPos.x - dragNodeOffset.dx, canvasPos.y - dragNodeOffset.dy);
+      return;
+    }
+    if (isPanning && panStart) {
       setTransform(prev => ({
         ...prev,
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
       }));
     }
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
-    setDragStart(null);
+    setDraggingNodeId(null);
+    setDragNodeOffset(null);
+    setIsPanning(false);
+    setPanStart(null);
+  };
+
+  // Drop from ElementsPanel
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const type = e.dataTransfer.getData('elementType');
+    if (!type) return;
+    const pos = screenToCanvas(e.clientX, e.clientY);
+    onDropNode?.(type, pos.x, pos.y);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
   };
 
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
 
   return (
-    <div className="w-full h-full bg-[#080808] relative overflow-hidden" style={{ cursor: isDragging ? 'grabbing' : 'grab' }}>
+    <div
+      ref={containerRef}
+      className="w-full h-full bg-[#080808] relative overflow-hidden"
+      style={{ cursor: draggingNodeId ? 'grabbing' : isPanning ? 'grabbing' : 'grab' }}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+    >
       {/* Grid background */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.15 }}>
         <defs>
@@ -197,6 +257,7 @@ export default function MapCanvas({ nodes, connections, onSelectNode, selectedNo
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        style={{ userSelect: 'none' }}
       >
         <rect width="100%" height="100%" fill="transparent" />
         <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
@@ -235,11 +296,11 @@ export default function MapCanvas({ nodes, connections, onSelectNode, selectedNo
         <button onClick={() => setTransform({ x: 0, y: 0, scale: 1 })} className="hover:text-white ml-1">↺</button>
       </div>
 
-      {/* Expand hint */}
-      {expandedIds.size === 1 && nodes.length > 1 && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 border border-primary/30 rounded-lg px-4 py-2 text-xs text-white/70 flex items-center gap-2 animate-pulse">
+      {/* Drop hint */}
+      {nodes.length <= 1 && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-black/80 border border-primary/30 rounded-lg px-4 py-2 text-xs text-white/70 flex items-center gap-2 pointer-events-none">
           <Plus className="w-3 h-3 text-primary" />
-          Clique nos botões <span className="text-primary font-bold">+</span> nas setas para revelar o mapa progressivamente
+          Arraste elementos do painel esquerdo para o canvas
         </div>
       )}
     </div>

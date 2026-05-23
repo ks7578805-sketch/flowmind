@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Undo2, Redo2, Minus, Plus, Save, History, Download, Share2, Play, MoreHorizontal, Edit2, Loader2 } from 'lucide-react';
+import { Undo2, Redo2, Minus, Plus, Save, History, Download, Share2, Play, MoreHorizontal, Edit2, Loader2, ArrowLeft } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import MapCanvas from '@/components/editor/MapCanvas';
 import ElementsPanel from '@/components/editor/ElementsPanel';
@@ -182,16 +182,16 @@ export default function Editor() {
     setSelectedNode(updatedNode);
   };
 
-  const handleAddNode = (type) => {
+  const handleAddNode = (type, x, y) => {
     const newNode = {
       id: `node_${Date.now()}`,
-      title: 'Novo Bloco',
+      title: type === 'title' ? 'Título' : type === 'text' ? 'Texto' : type === 'block' ? 'Bloco explicativo' : 'Novo Bloco',
       description: '',
-      type: type === 'title' ? 'branch' : 'leaf',
-      x: 400 + Math.random() * 200,
-      y: 300 + Math.random() * 200,
-      parent_id: selectedNode?.id || 'root',
-      expanded: false,
+      type: type === 'title' ? 'branch' : type === 'center' ? 'center' : 'leaf',
+      x: x ?? (400 + Math.random() * 300),
+      y: y ?? (250 + Math.random() * 200),
+      parent_id: selectedNode?.id || null,
+      expanded: true,
     };
     setMapData(prev => ({
       nodes: [...prev.nodes, newNode],
@@ -199,6 +199,7 @@ export default function Editor() {
         ? [...prev.connections, { from: selectedNode.id, to: newNode.id }]
         : prev.connections,
     }));
+    setSelectedNode(newNode);
   };
 
   if (loading) {
@@ -214,6 +215,15 @@ export default function Editor() {
       {/* Top toolbar */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#0d0d0d] border-b border-white/5 flex-shrink-0">
         <div className="flex items-center gap-3">
+          {/* Back button */}
+          <button
+            onClick={() => navigate(-1)}
+            className="w-7 h-7 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-white hover:bg-white/10 transition-colors"
+            title="Voltar"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+          </button>
+
           <div className="flex items-center gap-1.5">
             {editingTitle ? (
               <input
@@ -296,6 +306,13 @@ export default function Editor() {
               connections={mapData.connections || []}
               onSelectNode={setSelectedNode}
               selectedNodeId={selectedNode?.id}
+              onDropNode={handleAddNode}
+              onNodeMove={(nodeId, x, y) => {
+                setMapData(prev => ({
+                  ...prev,
+                  nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, x, y } : n)
+                }));
+              }}
             />
           )}
         </div>

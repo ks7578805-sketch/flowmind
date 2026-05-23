@@ -51,14 +51,20 @@ export default function ElementsPanel({ onAddNode }) {
         <div className="text-[10px] font-semibold text-muted-foreground mb-2">BÁSICOS</div>
         <div className="grid grid-cols-2 gap-1.5">
           {ELEMENTS['BÁSICOS'].map(el => (
-            <button
+            <div
               key={el.label}
+              draggable
+              onDragStart={e => {
+                e.dataTransfer.setData('elementType', el.type);
+                e.dataTransfer.effectAllowed = 'copy';
+              }}
               onClick={() => onAddNode?.(el.type)}
-              className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/3 border border-white/5 hover:bg-white/8 hover:border-primary/30 transition-all group"
+              className="flex flex-col items-center gap-1 p-2 rounded-lg bg-white/3 border border-white/5 hover:bg-white/8 hover:border-primary/30 transition-all group cursor-grab active:cursor-grabbing select-none"
+              title={`Arraste para o canvas ou clique para adicionar`}
             >
               <el.icon className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
               <span className="text-[9px] text-muted-foreground group-hover:text-white transition-colors text-center leading-tight">{el.label}</span>
-            </button>
+            </div>
           ))}
         </div>
       </div>
