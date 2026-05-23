@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Crosshair } from 'lucide-react';
 
 const NODE_STYLES = {
   center:    { bg: '#120808', border: '#e53e3e', w: 240, h: 130 },
@@ -41,10 +42,8 @@ function getNodeAnimStyle(node) {
   return anims.length ? { animation: anims.join(', ') } : {};
 }
 
-// Rich text rendering: supports **bold**, *color:hex:text*
 function renderRichText(text) {
   if (!text) return null;
-  // Parse [color:#hex]word[/color] pattern
   const parts = [];
   const re = /\[color:(#[0-9a-fA-F]{3,6})\](.*?)\[\/color\]/g;
   let last = 0, m;
@@ -60,40 +59,33 @@ function renderRichText(text) {
 
 function NodeContent({ node, style }) {
   const type = node.element_type || node.type;
-  const w = style.w;
-  const h = style.h;
+  const w = style.w, h = style.h, px = 10;
   const hasImage = !!node.image_url;
   const imgW = hasImage ? 48 : 0;
-  const px = 10;
-  const textX = node.x - w / 2 + px + (hasImage ? imgW + 6 : 0);
-  const textW = w - px * 2 - (hasImage ? imgW + 6 : 0) - (node.icon ? 20 : 0);
+  const textX = node.x - w/2 + px + (hasImage ? imgW + 6 : 0);
+  const textW = w - px*2 - (hasImage ? imgW + 6 : 0);
   const cy = node.y;
 
   if (type === 'image') return (
     <g>
       {node.image_url
-        ? <image href={node.image_url} x={node.x - w/2 + 8} y={node.y - h/2 + 8} width={w-16} height={h-28} preserveAspectRatio="xMidYMid slice" clipPath={`inset(0 round 6px)`} />
-        : <>
-            <rect x={node.x-w/2+8} y={node.y-h/2+8} width={w-16} height={h-32} rx={6} fill="#1a2a3a" stroke="#3b82f6" strokeWidth={1} opacity={0.5} />
-            <text x={node.x} y={node.y - 4} textAnchor="middle" fontSize={20} fill="#3b82f6" opacity={0.6}>🖼️</text>
-          </>
-      }
+        ? <image href={node.image_url} x={node.x-w/2+8} y={node.y-h/2+8} width={w-16} height={h-28} preserveAspectRatio="xMidYMid slice" />
+        : <><rect x={node.x-w/2+8} y={node.y-h/2+8} width={w-16} height={h-32} rx={6} fill="#1a2a3a" stroke="#3b82f6" strokeWidth={1} opacity={0.5} />
+            <text x={node.x} y={node.y-4} textAnchor="middle" fontSize={20} fill="#3b82f6" opacity={0.6}>🖼️</text></>}
       <foreignObject x={node.x-w/2+8} y={node.y+h/2-22} width={w-16} height={18}>
-        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:8,color:'#6b7280',textAlign:'center',userSelect:'none' }}>{node.title || 'Imagem'}</div>
+        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:8,color:'#6b7280',textAlign:'center',userSelect:'none' }}>{node.title||'Imagem'}</div>
       </foreignObject>
     </g>
   );
-
   if (type === 'video') return (
     <g>
       <rect x={node.x-w/2+8} y={node.y-h/2+8} width={w-16} height={h-32} rx={6} fill="#110800" stroke="#f97316" strokeWidth={1} opacity={0.5} />
       <text x={node.x} y={node.y-4} textAnchor="middle" fontSize={22} fill="#f97316" opacity={0.8}>▶️</text>
       <foreignObject x={node.x-w/2+8} y={node.y+h/2-22} width={w-16} height={18}>
-        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:8,color:'#f97316',textAlign:'center',userSelect:'none' }}>{node.title || 'Vídeo'}</div>
+        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:8,color:'#f97316',textAlign:'center',userSelect:'none' }}>{node.title||'Vídeo'}</div>
       </foreignObject>
     </g>
   );
-
   if (type === 'audio') return (
     <g>
       <text x={node.x-w/2+20} y={cy+5} fontSize={14} fill="#10b981">🎵</text>
@@ -102,74 +94,45 @@ function NodeContent({ node, style }) {
       </foreignObject>
     </g>
   );
-
-  if (type === 'icon') return (
-    <text x={node.x} y={cy+8} textAnchor="middle" fontSize={30} fill={style.border} opacity={0.9}>{node.icon||'⭐'}</text>
-  );
-
+  if (type === 'icon') return <text x={node.x} y={cy+8} textAnchor="middle" fontSize={30} fill={style.border} opacity={0.9}>{node.icon||'⭐'}</text>;
   if (type === 'title') return (
     <foreignObject x={node.x-w/2+px} y={cy-h/2+8} width={w-px*2} height={h-16}>
-      <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:13,fontWeight:900,color:'#fff',letterSpacing:'0.03em',userSelect:'none',lineHeight:1.2 }}>
-        {renderRichText(node.title || 'Título')}
-      </div>
+      <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:13,fontWeight:900,color:'#fff',letterSpacing:'0.03em',userSelect:'none',lineHeight:1.2 }}>{renderRichText(node.title||'Título')}</div>
     </foreignObject>
   );
-
   if (type === 'block') return (
     <g>
       <rect x={node.x-w/2+8} y={node.y-h/2+8} width={3} height={h-16} rx={1.5} fill={style.border} />
       <foreignObject x={node.x-w/2+18} y={cy-h/2+10} width={w-30} height={h-20}>
         <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:10,color:'#e2e8f0',userSelect:'none',lineHeight:1.4 }}>
-          <div style={{ fontWeight:700,marginBottom:2,fontSize:10 }}>{renderRichText(node.title||'Bloco')}</div>
+          <div style={{ fontWeight:700,marginBottom:2 }}>{renderRichText(node.title||'Bloco')}</div>
           {node.description && <div style={{ opacity:0.65,fontSize:9 }}>{renderRichText(node.description)}</div>}
         </div>
       </foreignObject>
     </g>
   );
-
   if (type === 'text' || type === 'ai_text') return (
     <foreignObject x={node.x-w/2+px} y={cy-h/2+8} width={w-px*2} height={h-16}>
       <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',userSelect:'none',lineHeight:1.4 }}>
-        {type === 'ai_text' && <div style={{ fontSize:7,color:'#8b5cf6',fontWeight:700,marginBottom:2,letterSpacing:'0.05em' }}>✨ IA</div>}
+        {type==='ai_text' && <div style={{ fontSize:7,color:'#8b5cf6',fontWeight:700,marginBottom:2 }}>✨ IA</div>}
         <div style={{ fontSize:10,color:'#e2e8f0',fontWeight:500 }}>{renderRichText(node.title||'Texto')}</div>
         {node.description && <div style={{ fontSize:9,color:'#9ca3af',marginTop:2 }}>{renderRichText(node.description)}</div>}
       </div>
     </foreignObject>
   );
-
-  // Default: center / branch / leaf / highlight
   const isCenter = node.type === 'center';
-  const titleSize = isCenter ? 12 : 10;
   return (
     <g>
-      {/* Side image thumbnail */}
-      {hasImage && (
-        <image
-          href={node.image_url}
-          x={node.x - w/2 + px}
-          y={cy - imgW/2}
-          width={imgW} height={imgW}
-          preserveAspectRatio="xMidYMid slice"
-          clipPath="inset(0 round 6px)"
-          style={{ borderRadius: 6 }}
-        />
-      )}
-      {/* Emoji icon */}
-      {node.icon && !hasImage && (
-        <text x={node.x-w/2+16} y={cy+5} fontSize={13} fill={style.border} opacity={0.85}>{node.icon}</text>
-      )}
-      {/* Title */}
-      <foreignObject x={textX} y={cy-h/2+8} width={textW} height={isCenter ? 66 : 42}>
-        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:titleSize,fontWeight:700,color:'#fff',wordBreak:'break-word',userSelect:'none',lineHeight:1.25,textAlign:isCenter?'center':'left' }}>
+      {hasImage && <image href={node.image_url} x={node.x-w/2+px} y={cy-imgW/2} width={imgW} height={imgW} preserveAspectRatio="xMidYMid slice" />}
+      {node.icon && !hasImage && <text x={node.x-w/2+16} y={cy+5} fontSize={13} fill={style.border} opacity={0.85}>{node.icon}</text>}
+      <foreignObject x={textX} y={cy-h/2+8} width={textW} height={isCenter?66:42}>
+        <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:isCenter?12:10,fontWeight:700,color:'#fff',wordBreak:'break-word',userSelect:'none',lineHeight:1.25,textAlign:isCenter?'center':'left' }}>
           {renderRichText(node.title)}
         </div>
       </foreignObject>
-      {/* Description */}
       {node.description && (
         <foreignObject x={textX} y={cy+(isCenter?-8:16)} width={textW} height={24}>
-          <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:8,color:'#6b7280',userSelect:'none',lineHeight:1.3 }}>
-            {renderRichText(node.description)}
-          </div>
+          <div xmlns="http://www.w3.org/1999/xhtml" style={{ fontFamily:'Inter',fontSize:8,color:'#6b7280',userSelect:'none',lineHeight:1.3 }}>{renderRichText(node.description)}</div>
         </foreignObject>
       )}
     </g>
@@ -185,58 +148,29 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
   const showShadow = node.show_shadow !== false;
   const showBorder = node.show_neon_border !== false;
   const glowIntensity = node.glow_intensity !== undefined ? node.glow_intensity / 100 : 0.3;
-
-  const borderOpacity = isSelected ? 1 : hovered ? 0.85 : 0.7;
   const glowFilter = isSelected
-    ? `drop-shadow(0 0 ${8 * glowIntensity + 4}px ${style.border}${Math.round(glowIntensity * 200 + 55).toString(16).padStart(2,'0')})`
+    ? `drop-shadow(0 0 ${8*glowIntensity+4}px ${style.border}${Math.round(glowIntensity*200+55).toString(16).padStart(2,'0')})`
     : hovered
-      ? `drop-shadow(0 0 ${5 * glowIntensity + 2}px ${style.border}${Math.round(glowIntensity * 180 + 40).toString(16).padStart(2,'0')})`
+      ? `drop-shadow(0 0 ${5*glowIntensity+2}px ${style.border}${Math.round(glowIntensity*180+40).toString(16).padStart(2,'0')})`
       : `drop-shadow(0 2px 6px rgba(0,0,0,0.85))`;
 
   return (
-    <g
-      onMouseDown={onMouseDown}
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <g onMouseDown={onMouseDown} onClick={onClick} onContextMenu={onContextMenu}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{ cursor: isConnectingMode ? 'crosshair' : 'grab', ...animStyle }}
     >
-      {/* 3D depth shadow layer */}
-      {depth > 0 && (
-        <>
-          <rect x={node.x-w/2+depth} y={node.y-h/2+depth} width={w} height={h} rx={12}
-            fill={style.border} opacity={0.12} />
-          {/* Right side face */}
-          <path
-            d={`M ${node.x+w/2} ${node.y-h/2+8} L ${node.x+w/2+depth} ${node.y-h/2+depth+2} L ${node.x+w/2+depth} ${node.y+h/2+depth-2} L ${node.x+w/2} ${node.y+h/2-4} Z`}
-            fill={style.border} opacity={0.22}
-          />
-          {/* Bottom face */}
-          <path
-            d={`M ${node.x-w/2+8} ${node.y+h/2} L ${node.x-w/2+depth+2} ${node.y+h/2+depth} L ${node.x+w/2+depth-2} ${node.y+h/2+depth} L ${node.x+w/2-4} ${node.y+h/2} Z`}
-            fill={style.border} opacity={0.14}
-          />
-        </>
-      )}
-
-      {/* Drop shadow */}
-      {showShadow && (
-        <rect x={node.x-w/2+4} y={node.y-h/2+8} width={w} height={h} rx={12}
-          fill="rgba(0,0,0,0.7)" style={{ filter:'blur(8px)' }} />
-      )}
-
-      {/* Main face */}
-      <rect
-        x={node.x-w/2} y={node.y-h/2} width={w} height={h} rx={12}
-        fill={style.bg}
+      {depth > 0 && <>
+        <rect x={node.x-w/2+depth} y={node.y-h/2+depth} width={w} height={h} rx={12} fill={style.border} opacity={0.12} />
+        <path d={`M ${node.x+w/2} ${node.y-h/2+8} L ${node.x+w/2+depth} ${node.y-h/2+depth+2} L ${node.x+w/2+depth} ${node.y+h/2+depth-2} L ${node.x+w/2} ${node.y+h/2-4} Z`} fill={style.border} opacity={0.22} />
+        <path d={`M ${node.x-w/2+8} ${node.y+h/2} L ${node.x-w/2+depth+2} ${node.y+h/2+depth} L ${node.x+w/2+depth-2} ${node.y+h/2+depth} L ${node.x+w/2-4} ${node.y+h/2} Z`} fill={style.border} opacity={0.14} />
+      </>}
+      {showShadow && <rect x={node.x-w/2+4} y={node.y-h/2+8} width={w} height={h} rx={12} fill="rgba(0,0,0,0.7)" style={{ filter:'blur(8px)' }} />}
+      <rect x={node.x-w/2} y={node.y-h/2} width={w} height={h} rx={12} fill={style.bg}
         stroke={showBorder ? style.border : 'transparent'}
-        strokeWidth={isSelected ? 2 : hovered ? 1.5 : 1}
-        strokeOpacity={borderOpacity}
-        style={{ filter: glowFilter }}
+        strokeWidth={isSelected?2:hovered?1.5:1}
+        strokeOpacity={isSelected?1:hovered?0.85:0.7}
+        style={{ filter:glowFilter }}
       />
-
-      {/* Inner gradient — subtle top highlight only */}
       <defs>
         <linearGradient id={`ng_${node.id}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="white" stopOpacity="0.06" />
@@ -244,25 +178,9 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
         </linearGradient>
       </defs>
       <rect x={node.x-w/2+1} y={node.y-h/2+1} width={w-2} height={h-2} rx={11} fill={`url(#ng_${node.id})`} />
-
-      {/* Selection ring */}
-      {isSelected && (
-        <rect x={node.x-w/2-3} y={node.y-h/2-3} width={w+6} height={h+6} rx={14}
-          fill="none" stroke={style.border} strokeWidth={1.5} strokeOpacity={0.6}
-          strokeDasharray="4 3"
-        />
-      )}
-
-      {/* Connect target ring */}
-      {isConnectingMode && (
-        <rect x={node.x-w/2-4} y={node.y-h/2-4} width={w+8} height={h+8} rx={15}
-          fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 3" opacity={0.85}
-        />
-      )}
-
+      {isSelected && <rect x={node.x-w/2-3} y={node.y-h/2-3} width={w+6} height={h+6} rx={14} fill="none" stroke={style.border} strokeWidth={1.5} strokeOpacity={0.6} strokeDasharray="4 3" />}
+      {isConnectingMode && <rect x={node.x-w/2-4} y={node.y-h/2-4} width={w+8} height={h+8} rx={15} fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 3" opacity={0.85} />}
       <NodeContent node={node} style={style} />
-
-      {/* Connect handle (+) on hover */}
       {hovered && !isConnectingMode && (
         <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
           <circle cx={node.x+w/2+13} cy={node.y} r={14} fill="transparent" />
@@ -274,105 +192,125 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
   );
 }
 
-function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete }) {
+// ─── CONNECTION LINE ──────────────────────────────────────────────────────────
+// Hover-to-show trash: thick invisible hit area always present; trash appears on hover OR selected
+function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onContextMenu }) {
+  const [hovered, setHovered] = useState(false);
   if (!from || !to) return null;
+
   const fromStyle = getStyle(from);
   const toStyle = getStyle(to);
-
-  // S-curve: connect from right/left edge smartly
   const goRight = to.x >= from.x;
   const x1 = from.x + (goRight ? fromStyle.w/2 : -fromStyle.w/2);
   const y1 = from.y;
   const x2 = to.x + (goRight ? -toStyle.w/2 : toStyle.w/2);
   const y2 = to.y;
-
-  // True S-curve control points
-  const dx = Math.abs(x2 - x1) * 0.5;
-  const path = `M ${x1} ${y1} C ${x1 + (goRight ? dx : -dx)} ${y1}, ${x2 + (goRight ? -dx : dx)} ${y2}, ${x2} ${y2}`;
-
+  const dx = Math.abs(x2-x1)*0.5;
+  const path = `M ${x1} ${y1} C ${x1+(goRight?dx:-dx)} ${y1}, ${x2+(goRight?-dx:dx)} ${y2}, ${x2} ${y2}`;
   const color = conn?.custom_color || from.custom_color || '#e53e3e';
 
-  // Midpoint on cubic bezier at t=0.5
-  const midX = 0.125*x1 + 0.375*(x1+(goRight?dx:-dx)) + 0.375*(x2+(goRight?-dx:dx)) + 0.125*x2;
-  const midY = (y1 + y2) / 2;
+  // Midpoint t=0.5 on cubic bezier
+  const cp1x = x1+(goRight?dx:-dx), cp2x = x2+(goRight?-dx:dx);
+  const midX = 0.125*x1 + 0.375*cp1x + 0.375*cp2x + 0.125*x2;
+  const midY = (y1+y2)/2;
 
-  // Arrow direction
-  const nearEndX = x2 + (goRight ? -8 : 8);
-  const angle = Math.atan2(y2 - midY, x2 - nearEndX) * 180 / Math.PI;
+  // Arrowhead angle
+  const angle = Math.atan2(y2-midY, x2-(x2+(goRight?-8:8))) * 180/Math.PI;
+
+  const showTrash = hovered || isSelected;
 
   return (
-    <g>
-      {/* Wide invisible hit area */}
-      <path d={path} fill="none" stroke="transparent" strokeWidth={30} style={{ cursor:'pointer' }}
-        onClick={(e) => { e.stopPropagation(); onSelect(); }} />
-
-      {/* Outer glow */}
-      <path d={path} fill="none" stroke={color} strokeWidth={6} opacity={0.08} strokeLinecap="round" />
-      {/* Inner glow */}
-      <path d={path} fill="none" stroke={color} strokeWidth={3} opacity={0.15} strokeLinecap="round" />
-
-      {/* Main line */}
-      <path d={path} fill="none" stroke={color}
-        strokeWidth={isSelected ? 2.5 : 1.8}
-        opacity={isSelected ? 1 : 0.75}
-        strokeLinecap="round"
+    <g
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Extra-wide invisible hit zone — catches "nearby" clicks, 40px wide */}
+      <path d={path} fill="none" stroke="transparent" strokeWidth={40} style={{ cursor:'pointer' }}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
-        style={{ cursor:'pointer' }}
+        onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e); }}
       />
-
-      {/* Animated flow dash */}
-      <path d={path} fill="none" stroke="white" strokeWidth={1} opacity={0.18}
+      {/* Outer glow */}
+      <path d={path} fill="none" stroke={color} strokeWidth={6} opacity={0.07} strokeLinecap="round" />
+      {/* Main line */}
+      <path d={path} fill="none" stroke={color} strokeWidth={isSelected?2.5:1.8}
+        opacity={isSelected?1:hovered?0.9:0.7} strokeLinecap="round"
+        style={{ cursor:'pointer' }}
+        onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      />
+      {/* Flow dash */}
+      <path d={path} fill="none" stroke="white" strokeWidth={1} opacity={0.15}
         strokeDasharray="6 8" className="flow-line" strokeLinecap="round" />
-
       {/* Arrowhead */}
       <g transform={`translate(${x2},${y2}) rotate(${angle})`}>
         <polygon points="-7,-3.5 0,0 -7,3.5" fill={color} opacity={0.9} />
       </g>
 
-      {/* Delete button — at midpoint, only when selected */}
-      {isSelected && (
-        <g onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{ cursor:'pointer' }}>
-          <circle cx={midX} cy={midY} r={22} fill="transparent" />
-          <circle cx={midX} cy={midY} r={13} fill="#1a0808" stroke="#e53e3e" strokeWidth={1.5} opacity={0.95} />
-          <text x={midX} y={midY+5} textAnchor="middle" fontSize={13} fill="#e53e3e" style={{ userSelect:'none' }}>🗑</text>
+      {/* Trash: always visible on hover or selected — ONE CLICK deletes */}
+      {showTrash && (
+        <g
+          onMouseEnter={() => setHovered(true)}
+          onMouseLeave={() => setHovered(false)}
+          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(); }}
+          style={{ cursor:'pointer' }}
+        >
+          {/* Large hit area */}
+          <circle cx={midX} cy={midY} r={26} fill="transparent" />
+          {/* Button */}
+          <circle cx={midX} cy={midY} r={14} fill="#1a0808" stroke="#e53e3e" strokeWidth={1.5} />
+          <text x={midX} y={midY+5} textAnchor="middle" fontSize={14} fill="#e53e3e" style={{ userSelect:'none' }}>🗑</text>
         </g>
       )}
     </g>
   );
 }
 
-// Minimap component
-function Minimap({ nodes, transform, canvasW, canvasH }) {
+// ─── MINIMAP ─────────────────────────────────────────────────────────────────
+function Minimap({ nodes, transform, containerRef }) {
   if (!nodes.length) return null;
-  const mmW = 120, mmH = 80;
-  const padding = 20;
+  const mmW = 140, mmH = 90;
+  const padding = 40;
   const allX = nodes.map(n => n.x);
   const allY = nodes.map(n => n.y);
   const minX = Math.min(...allX) - padding;
   const maxX = Math.max(...allX) + padding;
   const minY = Math.min(...allY) - padding;
   const maxY = Math.max(...allY) + padding;
-  const scaleX = mmW / (maxX - minX || 1);
-  const scaleY = mmH / (maxY - minY || 1);
-  const scale = Math.min(scaleX, scaleY);
+  const contentW = maxX - minX || 1;
+  const contentH = maxY - minY || 1;
+  const sc = Math.min(mmW/contentW, mmH/contentH);
+
+  // Viewport rect in minimap coords
+  let vpX=0, vpY=0, vpW=mmW, vpH=mmH;
+  if (containerRef?.current) {
+    const { width: cw, height: ch } = containerRef.current.getBoundingClientRect();
+    const canvasViewX = -transform.x / transform.scale;
+    const canvasViewY = -transform.y / transform.scale;
+    const canvasViewW = cw / transform.scale;
+    const canvasViewH = ch / transform.scale;
+    vpX = (canvasViewX - minX) * sc;
+    vpY = (canvasViewY - minY) * sc;
+    vpW = canvasViewW * sc;
+    vpH = canvasViewH * sc;
+  }
 
   return (
-    <div className="absolute bottom-14 left-4 rounded-lg overflow-hidden border border-white/10 bg-black/70 backdrop-blur-sm" style={{ width: mmW+2, height: mmH+2 }}>
+    <div className="absolute bottom-4 left-4 rounded-lg overflow-hidden border border-white/15 bg-black/80 backdrop-blur-sm" style={{ width:mmW+2, height:mmH+2 }}>
       <svg width={mmW} height={mmH}>
         {nodes.map(n => {
-          const nx = (n.x - minX) * scale;
-          const ny = (n.y - minY) * scale;
-          const style = NODE_STYLES[n.element_type] || NODE_STYLES[n.type] || NODE_STYLES.leaf;
-          const nw = Math.max(4, style.w * scale);
-          const nh = Math.max(3, style.h * scale);
-          const color = n.custom_color || style.border;
-          return <rect key={n.id} x={nx - nw/2} y={ny - nh/2} width={nw} height={nh} rx={2} fill={color} opacity={0.5} />;
+          const s = NODE_STYLES[n.element_type] || NODE_STYLES[n.type] || NODE_STYLES.leaf;
+          const nx = (n.x - minX)*sc, ny = (n.y - minY)*sc;
+          const nw = Math.max(4, s.w*sc), nh = Math.max(3, s.h*sc);
+          const col = n.custom_color || s.border;
+          return <rect key={n.id} x={nx-nw/2} y={ny-nh/2} width={nw} height={nh} rx={2} fill={col} opacity={0.55} />;
         })}
+        {/* Viewport rect */}
+        <rect x={vpX} y={vpY} width={vpW} height={vpH} fill="white" fillOpacity={0.05} stroke="white" strokeOpacity={0.3} strokeWidth={1} rx={2} />
       </svg>
     </div>
   );
 }
 
+// ─── MAIN CANVAS ─────────────────────────────────────────────────────────────
 export default function MapCanvas({
   nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
   onAddConnection, onDeleteConnection, onDeleteNode, svgRef: externalSvgRef, zoom, onZoomChange
@@ -385,22 +323,19 @@ export default function MapCanvas({
   const [connectingFromId, setConnectingFromId] = useState(null);
   const [selectedConnIdx, setSelectedConnIdx] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [contextMenu, setContextMenu] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, type: 'node'|'conn', id/idx }
   const svgRef = useRef(null);
   const containerRef = useRef(null);
 
   useEffect(() => {
-    if (zoom !== undefined && zoom !== transform.scale) {
+    if (zoom !== undefined && zoom !== transform.scale)
       setTransform(prev => ({ ...prev, scale: zoom }));
-    }
   }, [zoom]);
 
-  useEffect(() => {
-    if (externalSvgRef) externalSvgRef.current = svgRef.current;
-  }, [externalSvgRef]);
+  useEffect(() => { if (externalSvgRef) externalSvgRef.current = svgRef.current; }, [externalSvgRef]);
 
   useEffect(() => {
-    const h = (e) => { if (e.key === 'Escape') { setConnectingFromId(null); setSelectedConnIdx(null); setContextMenu(null); } };
+    const h = (e) => { if (e.key==='Escape') { setConnectingFromId(null); setSelectedConnIdx(null); setContextMenu(null); } };
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, []);
@@ -413,18 +348,15 @@ export default function MapCanvas({
 
   const screenToCanvas = useCallback((clientX, clientY) => {
     const rect = containerRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 500, y: 350 };
-    return {
-      x: (clientX - rect.left - transform.x) / transform.scale,
-      y: (clientY - rect.top - transform.y) / transform.scale,
-    };
+    if (!rect) return { x:500, y:350 };
+    return { x:(clientX-rect.left-transform.x)/transform.scale, y:(clientY-rect.top-transform.y)/transform.scale };
   }, [transform]);
 
   const findNodeAtPos = useCallback((cx, cy) => {
-    for (let i = nodes.length - 1; i >= 0; i--) {
+    for (let i = nodes.length-1; i >= 0; i--) {
       const n = nodes[i];
       const s = NODE_STYLES[n.element_type] || NODE_STYLES[n.type] || NODE_STYLES.leaf;
-      if (cx >= n.x-s.w/2 && cx <= n.x+s.w/2 && cy >= n.y-s.h/2 && cy <= n.y+s.h/2) return n;
+      if (cx>=n.x-s.w/2 && cx<=n.x+s.w/2 && cy>=n.y-s.h/2 && cy<=n.y+s.h/2) return n;
     }
     return null;
   }, [nodes]);
@@ -433,7 +365,7 @@ export default function MapCanvas({
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.08 : 0.93;
     setTransform(prev => {
-      const ns = Math.max(0.15, Math.min(3, prev.scale * factor));
+      const ns = Math.max(0.1, Math.min(4, prev.scale*factor));
       onZoomChange?.(ns);
       return { ...prev, scale: ns };
     });
@@ -445,29 +377,29 @@ export default function MapCanvas({
     const pos = screenToCanvas(e.clientX, e.clientY);
     const node = findNodeAtPos(pos.x, pos.y);
     if (node) {
-      if (connectingFromId) { if (connectingFromId !== node.id) onAddConnection?.(connectingFromId, node.id); setConnectingFromId(null); return; }
+      if (connectingFromId) { if (connectingFromId!==node.id) onAddConnection?.(connectingFromId, node.id); setConnectingFromId(null); return; }
       setDraggingNodeId(node.id);
-      setDragNodeOffset({ dx: pos.x - node.x, dy: pos.y - node.y });
+      setDragNodeOffset({ dx:pos.x-node.x, dy:pos.y-node.y });
       e.stopPropagation(); return;
     }
     if (connectingFromId) { setConnectingFromId(null); return; }
     setSelectedConnIdx(null);
     setIsPanning(true);
-    setPanStart({ x: e.clientX - transform.x, y: e.clientY - transform.y });
+    setPanStart({ x:e.clientX-transform.x, y:e.clientY-transform.y });
   };
 
   const handleMouseMove = (e) => {
     const pos = screenToCanvas(e.clientX, e.clientY);
     setMousePos(pos);
-    if (draggingNodeId) { onNodeMove?.(draggingNodeId, pos.x - dragNodeOffset.dx, pos.y - dragNodeOffset.dy); return; }
-    if (isPanning && panStart) setTransform(prev => ({ ...prev, x: e.clientX - panStart.x, y: e.clientY - panStart.y }));
+    if (draggingNodeId) { onNodeMove?.(draggingNodeId, pos.x-dragNodeOffset.dx, pos.y-dragNodeOffset.dy); return; }
+    if (isPanning && panStart) setTransform(prev => ({ ...prev, x:e.clientX-panStart.x, y:e.clientY-panStart.y }));
   };
 
   const handleMouseUp = (e) => {
     if (connectingFromId) {
       const pos = screenToCanvas(e.clientX, e.clientY);
       const node = findNodeAtPos(pos.x, pos.y);
-      if (node && node.id !== connectingFromId) onAddConnection?.(connectingFromId, node.id);
+      if (node && node.id!==connectingFromId) onAddConnection?.(connectingFromId, node.id);
       setConnectingFromId(null);
     }
     setDraggingNodeId(null); setDragNodeOffset(null); setIsPanning(false); setPanStart(null);
@@ -481,38 +413,51 @@ export default function MapCanvas({
     onDropNode?.(type, pos.x, pos.y);
   };
 
+  // Fit all nodes into view
+  const handleFitView = () => {
+    if (!nodes.length || !containerRef.current) return;
+    const { width: cw, height: ch } = containerRef.current.getBoundingClientRect();
+    const allX = nodes.map(n => n.x), allY = nodes.map(n => n.y);
+    const minX = Math.min(...allX) - 120, maxX = Math.max(...allX) + 120;
+    const minY = Math.min(...allY) - 80,  maxY = Math.max(...allY) + 80;
+    const contentW = maxX - minX, contentH = maxY - minY;
+    const newScale = Math.min(cw/contentW, ch/contentH, 1.5);
+    const newX = cw/2 - (minX + contentW/2)*newScale;
+    const newY = ch/2 - (minY + contentH/2)*newScale;
+    setTransform({ x:newX, y:newY, scale:newScale });
+    onZoomChange?.(newScale);
+  };
+
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full relative overflow-hidden"
+    <div ref={containerRef} className="w-full h-full relative overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse 70% 60% at 50% 40%, #0d0000 0%, #080808 70%, #050505 100%)',
+        background: 'radial-gradient(ellipse 80% 70% at 50% 40%, #100404 0%, #080808 60%, #050505 100%)',
         cursor: connectingFromId ? 'crosshair' : draggingNodeId ? 'grabbing' : isPanning ? 'grabbing' : 'default'
       }}
       onDrop={handleDrop}
-      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; }}
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect='copy'; }}
     >
       <style>{`
-        @keyframes mapFadeIn { from{opacity:0} to{opacity:1} }
-        @keyframes mapSlideLeft { from{opacity:0;transform:translateX(-40px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes mapSlideRight { from{opacity:0;transform:translateX(40px)} to{opacity:1;transform:translateX(0)} }
-        @keyframes mapSlideUp { from{opacity:0;transform:translateY(40px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes mapZoomIn { from{opacity:0;transform:scale(0.3)} to{opacity:1;transform:scale(1)} }
-        @keyframes mapBounce { 0%{opacity:0;transform:scale(0.3)} 60%{transform:scale(1.12)} 80%{transform:scale(0.96)} 100%{opacity:1;transform:scale(1)} }
-        @keyframes mapPulseGlow { 0%,100%{opacity:0.85} 50%{opacity:1;filter:brightness(1.3)} }
-        @keyframes mapShake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-4px)} 40%{transform:translateX(4px)} 60%{transform:translateX(-3px)} 80%{transform:translateX(3px)} }
-        @keyframes mapFloat { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-7px)} }
-        .flow-line { stroke-dasharray:6 8; animation:flowDash 1.5s linear infinite; }
-        @keyframes flowDash { to{stroke-dashoffset:-28} }
+        @keyframes mapFadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes mapSlideLeft{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes mapSlideRight{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+        @keyframes mapSlideUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes mapZoomIn{from{opacity:0;transform:scale(0.3)}to{opacity:1;transform:scale(1)}}
+        @keyframes mapBounce{0%{opacity:0;transform:scale(0.3)}60%{transform:scale(1.12)}80%{transform:scale(0.96)}100%{opacity:1;transform:scale(1)}}
+        @keyframes mapPulseGlow{0%,100%{opacity:0.85}50%{opacity:1;filter:brightness(1.3)}}
+        @keyframes mapShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
+        @keyframes mapFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+        .flow-line{stroke-dasharray:6 8;animation:flowDash 1.5s linear infinite}
+        @keyframes flowDash{to{stroke-dashoffset:-28}}
       `}</style>
 
-      {/* Subtle dot grid */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity:0.06 }}>
+      {/* Dot grid */}
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity:0.07 }}>
         <defs>
-          <pattern id="dots" width="30" height="30" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="1" fill="#888" />
+          <pattern id="dots" width="28" height="28" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" fill="#aaa" />
           </pattern>
         </defs>
         <rect width="100%" height="100%" fill="url(#dots)" />
@@ -525,12 +470,14 @@ export default function MapCanvas({
       >
         <rect width="100%" height="100%" fill="transparent" />
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.scale})`}>
+          {/* Connections rendered first (below nodes) */}
           {connections.map((conn, i) => (
             <ConnectionLine key={i}
               from={nodeMap[conn.from]} to={nodeMap[conn.to]} conn={conn}
-              isSelected={selectedConnIdx === i}
-              onSelect={() => setSelectedConnIdx(selectedConnIdx === i ? null : i)}
+              isSelected={selectedConnIdx===i}
+              onSelect={() => setSelectedConnIdx(selectedConnIdx===i ? null : i)}
               onDelete={() => { onDeleteConnection?.(i); setSelectedConnIdx(null); }}
+              onContextMenu={(e) => setContextMenu({ x:e.clientX, y:e.clientY, type:'conn', idx:i })}
             />
           ))}
 
@@ -538,22 +485,21 @@ export default function MapCanvas({
           {connectingFromId && nodeMap[connectingFromId] && (() => {
             const fn = nodeMap[connectingFromId];
             const fs = NODE_STYLES[fn.element_type] || NODE_STYLES[fn.type] || NODE_STYLES.leaf;
-            return (
-              <line x1={fn.x+fs.w/2} y1={fn.y} x2={mousePos.x} y2={mousePos.y}
-                stroke="#22c55e" strokeWidth={1.5} strokeDasharray="5 4" opacity={0.8} />
-            );
+            return <line x1={fn.x+fs.w/2} y1={fn.y} x2={mousePos.x} y2={mousePos.y}
+              stroke="#22c55e" strokeWidth={1.5} strokeDasharray="5 4" opacity={0.8} />;
           })()}
 
+          {/* Nodes */}
           {nodes.map(node => (
             <Node3D key={node.id} node={node}
-              isSelected={selectedNodeId === node.id}
-              isConnectingMode={connectingFromId !== null && connectingFromId !== node.id}
+              isSelected={selectedNodeId===node.id}
+              isConnectingMode={connectingFromId!==null && connectingFromId!==node.id}
               onStartConnect={(id) => setConnectingFromId(id)}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, nodeId:node.id }); }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, type:'node', nodeId:node.id }); }}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 const pos = screenToCanvas(e.clientX, e.clientY);
-                if (connectingFromId) { if (connectingFromId !== node.id) onAddConnection?.(connectingFromId, node.id); setConnectingFromId(null); }
+                if (connectingFromId) { if (connectingFromId!==node.id) onAddConnection?.(connectingFromId, node.id); setConnectingFromId(null); }
                 else { setDraggingNodeId(node.id); setDragNodeOffset({ dx:pos.x-node.x, dy:pos.y-node.y }); }
               }}
               onClick={(e) => { e.stopPropagation(); if (!draggingNodeId) { onSelectNode(node); setSelectedConnIdx(null); } }}
@@ -562,25 +508,46 @@ export default function MapCanvas({
         </g>
       </svg>
 
-      {/* Minimap */}
-      <Minimap nodes={nodes} transform={transform} />
+      {/* Minimap — bottom left, always updated */}
+      <Minimap nodes={nodes} transform={transform} containerRef={containerRef} />
 
-      {/* Context menu */}
-      {contextMenu && (
+      {/* Fit view / center button */}
+      <button
+        onClick={handleFitView}
+        title="Centralizar mapa"
+        className="absolute bottom-4 left-40 flex items-center gap-1.5 px-3 py-1.5 bg-black/80 border border-white/15 rounded-lg text-[10px] text-white/70 hover:text-white hover:bg-black/90 transition-colors z-10"
+      >
+        <Crosshair className="w-3 h-3" />
+        Centralizar
+      </button>
+
+      {/* Context menu — node */}
+      {contextMenu?.type === 'node' && (
         <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[170px]"
           style={{ left:contextMenu.x, top:contextMenu.y }} onClick={(e) => e.stopPropagation()}>
-          <button className="w-full px-4 py-2 text-xs text-left text-white/90 hover:bg-white/8 flex items-center gap-2.5"
+          <button className="w-full px-4 py-2 text-xs text-left text-white/90 hover:bg-white/8 flex items-center gap-2"
             onClick={() => { onSelectNode(nodes.find(n => n.id===contextMenu.nodeId)); setContextMenu(null); }}>
             ✏️ Editar bloco
           </button>
-          <button className="w-full px-4 py-2 text-xs text-left text-white/90 hover:bg-white/8 flex items-center gap-2.5"
+          <button className="w-full px-4 py-2 text-xs text-left text-white/90 hover:bg-white/8 flex items-center gap-2"
             onClick={() => { setConnectingFromId(contextMenu.nodeId); setContextMenu(null); }}>
             ➕ Conectar a outro bloco
           </button>
           <div className="border-t border-white/8 my-1" />
-          <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/8 flex items-center gap-2.5"
+          <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/8 flex items-center gap-2"
             onClick={() => { onDeleteNode?.(contextMenu.nodeId); setContextMenu(null); }}>
             🗑️ Deletar bloco
+          </button>
+        </div>
+      )}
+
+      {/* Context menu — connection */}
+      {contextMenu?.type === 'conn' && (
+        <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[160px]"
+          style={{ left:contextMenu.x, top:contextMenu.y }} onClick={(e) => e.stopPropagation()}>
+          <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/8 flex items-center gap-2"
+            onClick={() => { onDeleteConnection?.(contextMenu.idx); setSelectedConnIdx(null); setContextMenu(null); }}>
+            🗑️ Apagar conexão
           </button>
         </div>
       )}
