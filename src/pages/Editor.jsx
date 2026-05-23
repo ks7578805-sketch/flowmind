@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { Undo2, Redo2, Minus, Plus, Save, History, Download, Share2, Play, MoreHorizontal, Edit2, Loader2, ArrowLeft } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
-import MapCanvas from '@/components/editor/MapCanvas';
+import MapCanvas from '@/components/editor/MapCanvas.jsx';
 import ElementsPanel from '@/components/editor/ElementsPanel';
 import InspectorPanel from '@/components/editor/InspectorPanel';
 
@@ -122,6 +122,9 @@ export default function Editor() {
   const [saving, setSaving] = useState(false);
   const [title, setTitle] = useState('Novo Mapa');
   const [editingTitle, setEditingTitle] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
+  const svgRef = useRef(null);
 
   useEffect(() => {
     const templateId = searchParams.get('template');
@@ -174,12 +177,68 @@ export default function Editor() {
     setSaving(false);
   };
 
+  const pushHistory = (data) => {
+    setHistory(prev => {
+      const newHist = prev.slice(0, historyIndex + 1);
+      newHist.push(JSON.stringify(data));
+      return newHist.slice(-30); // keep last 30 states
+    });
+    setHistoryIndex(prev => Math.min(prev + 1, 29));
+  };
+
+  const handleUndo = () => {
+    if (historyIndex <= 0) return;
+    const newIndex = historyIndex - 1;
+    setHistoryIndex(newIndex);
+    setMapData(JSON.parse(history[newIndex]));
+  };
+
+  const handleRedo = () => {
+    if (historyIndex >= history.length - 1) return;
+    const newIndex = historyIndex + 1;
+    setHistoryIndex(newIndex);
+    setMapData(JSON.parse(history[newIndex]));
+  };
+
   const handleNodeUpdate = (updatedNode) => {
-    setMapData(prev => ({
-      ...prev,
-      nodes: prev.nodes.map(n => n.id === updatedNode.id ? updatedNode : n)
-    }));
+    setMapData(prev => {
+      const next = { ...prev, nodes: prev.nodes.map(n => n.id === updatedNode.id ? updatedNode : n) };
+      pushHistory(next);
+      return next;
+    });
     setSelectedNode(updatedNode);
+  };
+
+  const handleAddConnection = (fromId, toId) => {
+    const already = mapData.connections.some(c => c.from === fromId && c.to === toId);
+    if (already) return;
+    setMapData(prev => {
+      const next = { ...prev, connections: [...prev.connections, { from: fromId, to: toId }] };
+      pushHistory(next);
+      return next;
+    });
+  };
+
+  const handleDeleteConnection = (index) => {
+    setMapData(prev => {
+      const next = { ...prev, connections: prev.connections.filter((_, i) => i !== index) };
+      pushHistory(next);
+      return next;
+    });
+  };
+
+  const handleExportPNG = () => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const serializer = new XMLSerializer();
+    const svgStr = serializer.serializeToString(svg);
+    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleAddNode = (type, x, y) => {
@@ -198,12 +257,16 @@ export default function Editor() {
       parent_id: selectedNode?.id || null,
       expanded: true,
     };
-    setMapData(prev => ({
-      nodes: [...prev.nodes, newNode],
-      connections: selectedNode
-        ? [...prev.connections, { from: selectedNode.id, to: newNode.id }]
-        : prev.connections,
-    }));
+    setMapData(prev => {
+      const next = {
+        nodes: [...prev.nodes, newNode],
+        connections: selectedNode
+          ? [...prev.connections, { from: selectedNode.id, to: newNode.id }]
+          : prev.connections,
+      };
+      pushHistory(next);
+      return next;
+    });
     setSelectedNode(newNode);
   };
 
@@ -252,10 +315,10 @@ export default function Editor() {
         <div className="flex items-center gap-2">
           {/* Undo/redo */}
           <div className="flex gap-0.5 border border-white/10 rounded-lg overflow-hidden">
-            <button className="px-2 py-1.5 hover:bg-white/5 text-muted-foreground hover:text-white transition-colors">
+            <button onClick={handleUndo} disabled={historyIndex <= 0} className="px-2 py-1.5 hover:bg-white/5 text-muted-foreground hover:text-white transition-colors disabled:opacity-30">
               <Undo2 className="w-3.5 h-3.5" />
             </button>
-            <button className="px-2 py-1.5 hover:bg-white/5 text-muted-foreground hover:text-white transition-colors border-l border-white/5">
+            <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="px-2 py-1.5 hover:bg-white/5 text-muted-foreground hover:text-white transition-colors border-l border-white/5 disabled:opacity-30">
               <Redo2 className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -279,7 +342,7 @@ export default function Editor() {
             <History className="w-3.5 h-3.5" />
             Histórico
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-muted-foreground hover:text-white transition-colors">
+          <button onClick={handleExportPNG} className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-muted-foreground hover:text-white transition-colors">
             <Download className="w-3.5 h-3.5" />
             Exportar
           </button>
@@ -312,6 +375,9 @@ export default function Editor() {
               onSelectNode={setSelectedNode}
               selectedNodeId={selectedNode?.id}
               onDropNode={handleAddNode}
+              onAddConnection={handleAddConnection}
+              onDeleteConnection={handleDeleteConnection}
+              svgRef={svgRef}
               onNodeMove={(nodeId, x, y) => {
                 setMapData(prev => ({
                   ...prev,

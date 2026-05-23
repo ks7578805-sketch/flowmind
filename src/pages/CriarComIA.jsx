@@ -61,10 +61,52 @@ export default function CriarComIA() {
   const [loading, setLoading] = useState(false);
   const [versions, setVersions] = useState(null);
   const [charCount, setCharCount] = useState(0);
-  const [referenceImage, setReferenceImage] = useState(null); // { file, url, uploaded_url }
+  const [referenceImage, setReferenceImage] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showImagePreview, setShowImagePreview] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const fileInputRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+
+  const handleMicClick = async () => {
+    if (isRecording) {
+      // Stop recording
+      mediaRecorderRef.current?.stop();
+      return;
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mediaRecorder = new MediaRecorder(stream);
+    mediaRecorderRef.current = mediaRecorder;
+    audioChunksRef.current = [];
+
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) audioChunksRef.current.push(e.data);
+    };
+
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      setIsRecording(false);
+      setTranscribing(true);
+      const blob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      const file = new File([blob], 'audio.webm', { type: 'audio/webm' });
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const transcript = await base44.integrations.Core.TranscribeAudio({ audio_url: file_url });
+      if (transcript) {
+        setPrompt(prev => {
+          const updated = prev ? `${prev} ${transcript}` : transcript;
+          setCharCount(updated.length);
+          return updated;
+        });
+      }
+      setTranscribing(false);
+    };
+
+    mediaRecorder.start();
+    setIsRecording(true);
+  };
 
   const handleImageSelect = async (e) => {
     const file = e.target.files?.[0];
@@ -261,10 +303,25 @@ Retorne JSON com 3 versões completas:`,
 
               {/* Mic */}
               <div className="flex flex-col items-center justify-center gap-2">
-                <button className="w-14 h-14 rounded-full bg-primary/10 border-2 border-primary/40 flex items-center justify-center hover:bg-primary/20 transition-all group glow-pulse">
-                  <Mic className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                <button
+                  onClick={handleMicClick}
+                  disabled={transcribing}
+                  className={`w-14 h-14 rounded-full border-2 flex items-center justify-center transition-all group ${
+                    isRecording
+                      ? 'bg-red-500/30 border-red-400 animate-pulse'
+                      : transcribing
+                      ? 'bg-white/5 border-white/20 cursor-wait'
+                      : 'bg-primary/10 border-primary/40 hover:bg-primary/20 glow-pulse'
+                  }`}
+                >
+                  {transcribing
+                    ? <Loader2 className="w-5 h-5 text-white animate-spin" />
+                    : <Mic className={`w-5 h-5 ${isRecording ? 'text-red-400' : 'text-primary'} group-hover:scale-110 transition-transform`} />
+                  }
                 </button>
-                <p className="text-[9px] text-muted-foreground text-center">Falar ideia</p>
+                <p className="text-[9px] text-muted-foreground text-center">
+                  {isRecording ? 'Gravando...' : transcribing ? 'Transcrevendo...' : 'Falar ideia'}
+                </p>
               </div>
             </div>
 

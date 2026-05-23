@@ -112,47 +112,40 @@ export default function InspectorPanel({ selectedNode, onUpdate, onClose }) {
 
         {activeTab === 'estilo' && (
           <>
-            {/* Colors */}
+            {/* Node color */}
             <div>
-              <label className="text-[10px] text-muted-foreground mb-2 block">CORES</label>
-              <div className="flex items-center gap-2">
-                <div>
-                  <div className="text-[9px] text-muted-foreground mb-1">Cor do bloco</div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-6 h-6 rounded bg-primary border border-white/20 cursor-pointer" />
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[9px] text-muted-foreground mb-1">Cor do texto</div>
-                  <div className="w-6 h-6 rounded bg-white border border-white/20 cursor-pointer" />
-                </div>
-              </div>
-            </div>
-
-            {/* Effects */}
-            <div>
-              <label className="text-[10px] text-muted-foreground mb-2 block">EFEITOS</label>
-              <div className="space-y-2">
-                {['Brilho', 'Sombra', 'Profundidade 3D', 'Borda Neon'].map(effect => (
-                  <div key={effect} className="flex items-center justify-between">
-                    <span className="text-[10px] text-white/80">{effect}</span>
-                    <button
-                      className="w-8 h-4 bg-primary rounded-full flex items-center justify-end pr-0.5"
-                    >
-                      <div className="w-3 h-3 bg-white rounded-full" />
-                    </button>
-                  </div>
+              <label className="text-[10px] text-muted-foreground mb-2 block">COR DA BORDA / LINHA</label>
+              <div className="grid grid-cols-6 gap-1.5 mb-2">
+                {['#e53e3e','#ff6b00','#22c55e','#3b82f6','#a855f7','#f59e0b',
+                  '#10b981','#ec4899','#06b6d4','#6366f1','#ffffff','#6b7280'].map(color => (
+                  <button
+                    key={color}
+                    onClick={() => onUpdate({ ...selectedNode, custom_color: color })}
+                    className="w-6 h-6 rounded-lg border-2 transition-all hover:scale-110"
+                    style={{
+                      background: color,
+                      borderColor: selectedNode.custom_color === color ? '#fff' : 'transparent',
+                      boxShadow: selectedNode.custom_color === color ? `0 0 8px ${color}` : 'none'
+                    }}
+                  />
                 ))}
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-white/80">Profundidade</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-16 h-1 bg-primary/30 rounded-full relative">
-                      <div className="absolute left-0 top-0 h-full w-3/4 bg-primary rounded-full" />
-                      <div className="absolute top-1/2 -translate-y-1/2 left-3/4 w-3 h-3 bg-white rounded-full border border-primary" />
-                    </div>
-                    <span className="text-[9px] text-muted-foreground">80</span>
-                  </div>
-                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-[9px] text-muted-foreground">Cor personalizada:</label>
+                <input
+                  type="color"
+                  value={selectedNode.custom_color || '#e53e3e'}
+                  onChange={e => onUpdate({ ...selectedNode, custom_color: e.target.value })}
+                  className="w-8 h-6 rounded cursor-pointer bg-transparent border-0"
+                />
+                {selectedNode.custom_color && (
+                  <button
+                    onClick={() => onUpdate({ ...selectedNode, custom_color: undefined })}
+                    className="text-[9px] text-muted-foreground hover:text-white"
+                  >
+                    Resetar
+                  </button>
+                )}
               </div>
             </div>
           </>
