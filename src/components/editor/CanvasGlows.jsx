@@ -35,33 +35,17 @@ export default function CanvasGlows({ glows = [], setGlows, showPanel, setShowPa
 
   const removeGlow = (id) => {
     setGlows(prev => prev.filter(g => g.id !== id));
-    setSelected(prev => prev === id ? (glows.find(g => g.id !== id)?.id || null) : prev);
+    setSelected(null);
   };
 
-  const selectedGlow = glows.find(g => g.id === selected) || glows[0];
   const activeId = selected || glows[0]?.id;
+  const selectedGlow = glows.find(g => g.id === activeId);
 
   return (
     <>
-      {/* Static glow layer — no interaction */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {glows.map(g => (
-          <div key={g.id} className="absolute rounded-full"
-            style={{
-              left: `${g.x}%`, top: `${g.y}%`,
-              width: g.size, height: g.size,
-              background: `radial-gradient(ellipse, ${g.color} 0%, transparent 70%)`,
-              opacity: g.opacity,
-              transform: 'translate(-50%, -50%)',
-              filter: 'blur(40px)',
-            }}
-          />
-        ))}
-      </div>
-
       {/* Edit panel — opens via external button */}
       {showPanel && (
-        <div className="absolute top-4 right-4 bg-[#161616] border border-white/10 rounded-xl p-3 z-30 shadow-2xl w-56"
+        <div className="absolute top-4 right-4 bg-[#161616] border border-white/10 rounded-xl p-3 z-30 shadow-2xl w-60"
           onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-[10px] font-bold text-white/80 uppercase tracking-wide">Brilhos de Fundo</span>
@@ -74,7 +58,7 @@ export default function CanvasGlows({ glows = [], setGlows, showPanel, setShowPa
               <button key={g.id}
                 onClick={() => setSelected(g.id)}
                 className="w-6 h-6 rounded-full border-2 transition-all hover:scale-110"
-                style={{ background: g.color, borderColor: activeId === g.id ? '#fff' : 'transparent', opacity: g.opacity * 5 + 0.4 }}
+                style={{ background: g.color, borderColor: activeId === g.id ? '#fff' : 'transparent', opacity: Math.min(1, g.opacity * 5 + 0.4) }}
                 title={`Brilho ${i + 1}`}
               />
             ))}
@@ -103,6 +87,28 @@ export default function CanvasGlows({ glows = [], setGlows, showPanel, setShowPa
                 </div>
               </div>
 
+              {/* Position X */}
+              <div className="mb-2">
+                <div className="flex justify-between mb-1">
+                  <span className="text-[9px] text-muted-foreground">Posição X</span>
+                  <span className="text-[9px] text-white/40">{Math.round(selectedGlow.x)}%</span>
+                </div>
+                <input type="range" min={0} max={100} step={1} value={selectedGlow.x}
+                  onChange={e => updateGlow(activeId, { x: Number(e.target.value) })}
+                  className="w-full h-1 rounded-full appearance-none cursor-pointer" style={{ accentColor: selectedGlow.color }} />
+              </div>
+
+              {/* Position Y */}
+              <div className="mb-2">
+                <div className="flex justify-between mb-1">
+                  <span className="text-[9px] text-muted-foreground">Posição Y</span>
+                  <span className="text-[9px] text-white/40">{Math.round(selectedGlow.y)}%</span>
+                </div>
+                <input type="range" min={0} max={100} step={1} value={selectedGlow.y}
+                  onChange={e => updateGlow(activeId, { y: Number(e.target.value) })}
+                  className="w-full h-1 rounded-full appearance-none cursor-pointer" style={{ accentColor: selectedGlow.color }} />
+              </div>
+
               {/* Size */}
               <div className="mb-2">
                 <div className="flex justify-between mb-1">
@@ -125,7 +131,7 @@ export default function CanvasGlows({ glows = [], setGlows, showPanel, setShowPa
                   className="w-full h-1 rounded-full appearance-none cursor-pointer" style={{ accentColor: selectedGlow.color }} />
               </div>
 
-              <button onClick={() => { removeGlow(activeId); }}
+              <button onClick={() => removeGlow(activeId)}
                 className="w-full py-1.5 rounded-lg bg-red-950/40 border border-red-900/40 text-[9px] text-red-400 hover:bg-red-900/30 transition-all">
                 🗑 Remover este brilho
               </button>

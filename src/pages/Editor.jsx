@@ -277,10 +277,21 @@ export default function Editor() {
     setSelectedNode(null);
   };
 
-  // Revelar filhos ocultos de um nó
+  // Revelar um filho oculto específico
+  const handleRevealOne = (nodeId) => {
+    setMapData(prev => {
+      const next = {
+        ...prev,
+        nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, _hidden: false } : n),
+      };
+      pushHistory(next);
+      return next;
+    });
+  };
+
+  // Revelar todos os filhos diretos ocultos de um nó
   const handleRevealChildren = (nodeId) => {
     setMapData(prev => {
-      // Apenas filhos diretos imediatos
       const directChildIds = new Set(prev.connections.filter(c => c.from === nodeId).map(c => c.to));
       const next = {
         ...prev,
@@ -519,6 +530,7 @@ export default function Editor() {
               <MapCanvas
                 nodes={visibleNodes}
                 connections={visibleConns}
+                allNodes={mapData.nodes}
                 onSelectNode={setSelectedNode}
                 selectedNodeId={selectedNode?.id}
                 onDropNode={handleAddNode}
@@ -528,6 +540,7 @@ export default function Editor() {
                 onDeleteNode={handleDeleteNode}
                 onHideNode={handleHideNode}
                 onRevealChildren={handleRevealChildren}
+                onRevealOne={handleRevealOne}
                 glows={glows}
                 setGlows={setGlows}
                 showGlowPanel={showGlowPanel}

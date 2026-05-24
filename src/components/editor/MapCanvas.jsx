@@ -141,24 +141,50 @@ function NodeContent({ node, style }) {
 }
 
 // ─── "REVEAL HIDDEN" BADGE — shown on node when it has hidden children ────────
-function HiddenChildrenBadge({ node, onReveal }) {
+function HiddenChildrenBadge({ node, hiddenChildren, onRevealOne, onRevealAll }) {
+  const [open, setOpen] = useState(false);
   const style = getStyle(node);
   const { w, h } = style;
+
   return (
-    <g onClick={(e) => { e.stopPropagation(); onReveal(node.id); }} style={{ cursor: 'pointer' }}>
-      {/* Hit area */}
-      <rect x={node.x + w/2 - 2} y={node.y - 14} width={36} height={28} rx={8} fill="transparent" />
-      {/* Badge */}
-      <rect x={node.x + w/2 + 2} y={node.y - 11} width={28} height={22} rx={7} fill="#0f0f1a" stroke="#6366f1" strokeWidth={1.5} />
-      {/* Arrow icon */}
-      <text x={node.x + w/2 + 16} y={node.y + 5} textAnchor="middle" fontSize={11} fill="#6366f1" style={{ userSelect:'none' }}>▶</text>
-      {/* Pulse ring */}
-      <rect x={node.x + w/2} y={node.y - 13} width={32} height={26} rx={9} fill="none" stroke="#6366f1" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 3" />
+    <g>
+      {/* Badge button */}
+      <g onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }} style={{ cursor: 'pointer' }}>
+        <rect x={node.x + w/2 - 2} y={node.y - 14} width={34} height={28} rx={8} fill="transparent" />
+        <rect x={node.x + w/2 + 2} y={node.y - 11} width={26} height={22} rx={6} fill="#0f0f1a" stroke="#6366f1" strokeWidth={1.5} />
+        <text x={node.x + w/2 + 15} y={node.y + 5} textAnchor="middle" fontSize={10} fill="#6366f1" style={{ userSelect:'none' }}>
+          {open ? '▼' : '▶'}
+        </text>
+        <text x={node.x + w/2 + 24} y={node.y - 14} textAnchor="middle" fontSize={8} fill="#6366f1" style={{ userSelect:'none' }}>
+          {hiddenChildren.length}
+        </text>
+      </g>
+
+      {/* Dropdown of hidden children */}
+      {open && (
+        <g>
+          {hiddenChildren.map((child, i) => {
+            const yOff = node.y - h/2 - 14 - (hiddenChildren.length - i) * 28;
+            const label = (child.title || 'Sem título').slice(0, 18);
+            return (
+              <g key={child.id} onClick={(e) => { e.stopPropagation(); onRevealOne(child.id); setOpen(false); }} style={{ cursor: 'pointer' }}>
+                <rect x={node.x + w/2 - 10} y={yOff - 10} width={130} height={24} rx={6} fill="#111120" stroke="#6366f1" strokeWidth={1} strokeOpacity={0.5} />
+                <text x={node.x + w/2 + 4} y={yOff + 5} fontSize={9} fill="#c7d2fe" style={{ userSelect:'none' }}>👁 {label}</text>
+              </g>
+            );
+          })}
+          {/* Reveal all */}
+          <g onClick={(e) => { e.stopPropagation(); onRevealAll(node.id); setOpen(false); }} style={{ cursor: 'pointer' }}>
+            <rect x={node.x + w/2 - 10} y={node.y - h/2 - 42} width={130} height={24} rx={6} fill="#1a1a30" stroke="#818cf8" strokeWidth={1} strokeOpacity={0.7} />
+            <text x={node.x + w/2 + 4} y={node.y - h/2 - 26} fontSize={9} fill="#818cf8" fontWeight="bold" style={{ userSelect:'none' }}>↑ Mostrar todos</text>
+          </g>
+        </g>
+      )}
     </g>
   );
 }
 
-function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onRevealChildren }) {
+function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onRevealOne, onRevealAll }) {
   const [hovered, setHovered] = useState(false);
   const style = getStyle(node);
   const { w, h } = style;
@@ -201,25 +227,27 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
       {isConnectingMode && <rect x={node.x-w/2-4} y={node.y-h/2-4} width={w+8} height={h+8} rx={15} fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 3" opacity={0.85} />}
       <NodeContent node={node} style={style} />
 
-      {/* Connect handles — shown on hover */}
+      {/* Connect handles — subtle dots on hover */}
       {hovered && !isConnectingMode && (
         <>
-          <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
-            <circle cx={node.x+w/2+16} cy={node.y} r={14} fill="transparent" />
-            <circle cx={node.x+w/2+16} cy={node.y} r={10} fill="#0a1a0a" stroke="#4ade80" strokeWidth={1.5} />
-            <text x={node.x+w/2+16} y={node.y+4} textAnchor="middle" fontSize={13} fill="#4ade80" fontWeight="bold" style={{ userSelect:'none' }}>+</text>
-          </g>
-          <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
-            <circle cx={node.x-w/2-16} cy={node.y} r={14} fill="transparent" />
-            <circle cx={node.x-w/2-16} cy={node.y} r={10} fill="#0a1a0a" stroke="#4ade80" strokeWidth={1.5} />
-            <text x={node.x-w/2-16} y={node.y+4} textAnchor="middle" fontSize={13} fill="#4ade80" fontWeight="bold" style={{ userSelect:'none' }}>+</text>
-          </g>
+          {[{ cx: node.x + w/2 + 10, cy: node.y }, { cx: node.x - w/2 - 10, cy: node.y }].map((pos, i) => (
+            <g key={i} onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor: 'crosshair' }}>
+              <circle cx={pos.cx} cy={pos.cy} r={12} fill="transparent" />
+              <circle cx={pos.cx} cy={pos.cy} r={5} fill="#1a1a1a" stroke={style.border} strokeWidth={1.5} strokeOpacity={0.7} />
+              <circle cx={pos.cx} cy={pos.cy} r={2.5} fill={style.border} opacity={0.8} />
+            </g>
+          ))}
         </>
       )}
 
       {/* Badge when this node has hidden children */}
-      {node._hasHiddenChildren && (
-        <HiddenChildrenBadge node={node} onReveal={onRevealChildren} />
+      {node._hiddenChildren?.length > 0 && (
+        <HiddenChildrenBadge
+          node={node}
+          hiddenChildren={node._hiddenChildren}
+          onRevealOne={onRevealOne}
+          onRevealAll={onRevealAll}
+        />
       )}
     </g>
   );
@@ -331,9 +359,9 @@ function Minimap({ nodes, transform, containerRef }) {
 
 // ─── MAIN CANVAS ──────────────────────────────────────────────────────────────
 export default function MapCanvas({
-  nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
+  nodes, connections, allNodes, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
   onAddConnection, onDeleteConnection, onDeleteNode, onUpdateConnection,
-  onHideNode, onRevealChildren,
+  onHideNode, onRevealChildren, onRevealOne,
   glows, setGlows, showGlowPanel, setShowGlowPanel,
   svgRef: externalSvgRef, zoom, onZoomChange
 }) {
@@ -459,12 +487,15 @@ export default function MapCanvas({
     onZoomChange?.(finalScale);
   };
 
-  // Enrich nodes with hidden-children metadata
+  // Build a lookup from all nodes (visible + hidden) to get titles of hidden children
+  const allNodeMap = Object.fromEntries((allNodes || nodes).map(n => [n.id, n]));
   const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
   const enrichedNodes = nodes.map(n => {
-    const childIds = connections.filter(c => c.from === n.id).map(c => c.to);
-    const hasHiddenChildren = childIds.some(cid => !nodeMap[cid]); // child exists in connections but not visible
-    return { ...n, _hasHiddenChildren: hasHiddenChildren };
+    const childConns = connections.filter(c => c.from === n.id);
+    const hiddenChildren = childConns
+      .filter(c => !nodeMap[c.to])
+      .map(c => allNodeMap[c.to] || { id: c.to, title: c.to });
+    return { ...n, _hiddenChildren: hiddenChildren };
   });
   const enrichedMap = Object.fromEntries(enrichedNodes.map(n => [n.id, n]));
 
@@ -477,7 +508,6 @@ export default function MapCanvas({
       onDrop={handleDrop}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect='copy'; }}
     >
-      {/* Static ambient glow layer */}
       <CanvasGlows glows={glows} setGlows={setGlows} showPanel={showGlowPanel} setShowPanel={setShowGlowPanel} />
 
       <style>{`
@@ -509,6 +539,28 @@ export default function MapCanvas({
         onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp} style={{ userSelect:'none' }}
       >
+        <defs>
+          {glows.map(g => (
+            <radialGradient key={g.id} id={`svgGlow_${g.id}`} cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={g.color} stopOpacity={g.opacity} />
+              <stop offset="100%" stopColor={g.color} stopOpacity="0" />
+            </radialGradient>
+          ))}
+        </defs>
+        {/* Glow circles fixed in screen space — behind everything */}
+        {glows.map(g => {
+          const rect = containerRef.current?.getBoundingClientRect();
+          const cw = rect?.width || 1000;
+          const ch = rect?.height || 700;
+          return (
+            <ellipse key={g.id}
+              cx={`${g.x}%`} cy={`${g.y}%`}
+              rx={g.size / 2} ry={g.size / 2}
+              fill={`url(#svgGlow_${g.id})`}
+              style={{ filter: `blur(${Math.round(g.size * 0.12)}px)` }}
+            />
+          );
+        })}
         <rect width="100%" height="100%" fill="transparent" />
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.scale})`}>
           {connections.map((conn, i) => (
@@ -533,7 +585,8 @@ export default function MapCanvas({
               isSelected={selectedNodeId===node.id}
               isConnectingMode={connectingFromId!==null && connectingFromId!==node.id}
               onStartConnect={(id) => setConnectingFromId(id)}
-              onRevealChildren={onRevealChildren}
+              onRevealOne={onRevealOne}
+              onRevealAll={onRevealChildren}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, type:'node', nodeId:node.id }); }}
               onMouseDown={(e) => {
                 e.stopPropagation();
