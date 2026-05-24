@@ -252,7 +252,7 @@ export default function Editor() {
     });
   };
 
-  // Ocultar um nó (e seus descendentes) — marcado como _hidden, pai recebe _hasHiddenChildren
+  // Ocultar um nó (e seus descendentes) — marcado como _hidden, registra ordem de ocultamento
   const handleHideNode = (nodeId) => {
     setMapData(prev => {
       const getDescendants = (id, nodes, conns) => {
@@ -267,9 +267,11 @@ export default function Editor() {
       };
       const descendants = getDescendants(nodeId, prev.nodes, prev.connections);
       const toHide = new Set([nodeId, ...descendants]);
+      // Track global hide order so reveal-one respects ocultamento sequence
+      const maxOrder = Math.max(0, ...prev.nodes.map(n => n._hideOrder || 0));
       const next = {
         ...prev,
-        nodes: prev.nodes.map(n => toHide.has(n.id) ? { ...n, _hidden: true } : n),
+        nodes: prev.nodes.map((n, i) => toHide.has(n.id) ? { ...n, _hidden: true, _hideOrder: maxOrder + 1 } : n),
       };
       pushHistory(next);
       return next;

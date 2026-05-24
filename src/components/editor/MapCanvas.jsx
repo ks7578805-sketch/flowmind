@@ -145,38 +145,85 @@ function HiddenChildrenBadge({ node, hiddenChildren, onRevealOne, onRevealAll })
   const [open, setOpen] = useState(false);
   const style = getStyle(node);
   const { w, h } = style;
+  const borderColor = style.border;
+
+  // Sort by hide order ascending so first-hidden appears first in list
+  // (reveal one at a time = first hidden is first shown)
+  const sorted = [...hiddenChildren].sort((a, b) => (a._hideOrder || 0) - (b._hideOrder || 0));
+
+  const ROW_H = 26;
+  const MENU_W = 140;
+  const totalRows = sorted.length + 1; // items + "show all" button
+  const menuH = totalRows * ROW_H + 8;
+  const menuX = node.x + w / 2 + 14;
+  const menuY = node.y - menuH / 2;
 
   return (
     <g>
-      {/* Badge button */}
+      {/* Badge — small subtle dot with count, using node's own border color */}
       <g onClick={(e) => { e.stopPropagation(); setOpen(v => !v); }} style={{ cursor: 'pointer' }}>
-        <rect x={node.x + w/2 - 2} y={node.y - 14} width={34} height={28} rx={8} fill="transparent" />
-        <rect x={node.x + w/2 + 2} y={node.y - 11} width={26} height={22} rx={6} fill="#0f0f1a" stroke="#6366f1" strokeWidth={1.5} />
-        <text x={node.x + w/2 + 15} y={node.y + 5} textAnchor="middle" fontSize={10} fill="#6366f1" style={{ userSelect:'none' }}>
-          {open ? '▼' : '▶'}
+        {/* Invisible hit area */}
+        <rect x={node.x + w/2 - 4} y={node.y - 16} width={36} height={32} rx={8} fill="transparent" />
+        {/* Badge background */}
+        <rect x={node.x + w/2 + 2} y={node.y - 12} width={24} height={24} rx={6}
+          fill="#111" stroke={borderColor} strokeWidth={1} strokeOpacity={0.5} />
+        {/* Count number */}
+        <text x={node.x + w/2 + 14} y={node.y + 1} textAnchor="middle" fontSize={9} fontWeight="bold"
+          fill={borderColor} style={{ userSelect:'none' }}>
+          {sorted.length}
         </text>
-        <text x={node.x + w/2 + 24} y={node.y - 14} textAnchor="middle" fontSize={8} fill="#6366f1" style={{ userSelect:'none' }}>
-          {hiddenChildren.length}
+        {/* Small chevron below count */}
+        <text x={node.x + w/2 + 14} y={node.y + 10} textAnchor="middle" fontSize={7}
+          fill={borderColor} opacity={0.6} style={{ userSelect:'none' }}>
+          {open ? '▲' : '▼'}
         </text>
       </g>
 
-      {/* Dropdown of hidden children */}
+      {/* Dropdown panel */}
       {open && (
         <g>
-          {hiddenChildren.map((child, i) => {
-            const yOff = node.y - h/2 - 14 - (hiddenChildren.length - i) * 28;
-            const label = (child.title || 'Sem título').slice(0, 18);
+          {/* Panel background */}
+          <rect x={menuX} y={menuY} width={MENU_W} height={menuH} rx={8}
+            fill="#111" stroke={borderColor} strokeWidth={1} strokeOpacity={0.3} />
+
+          {/* Individual hidden children — sorted by hide order */}
+          {sorted.map((child, i) => {
+            const rowY = menuY + 4 + i * ROW_H;
+            const label = (child.title || 'Sem título').slice(0, 20);
             return (
-              <g key={child.id} onClick={(e) => { e.stopPropagation(); onRevealOne(child.id); setOpen(false); }} style={{ cursor: 'pointer' }}>
-                <rect x={node.x + w/2 - 10} y={yOff - 10} width={130} height={24} rx={6} fill="#111120" stroke="#6366f1" strokeWidth={1} strokeOpacity={0.5} />
-                <text x={node.x + w/2 + 4} y={yOff + 5} fontSize={9} fill="#c7d2fe" style={{ userSelect:'none' }}>👁 {label}</text>
+              <g key={child.id}
+                onClick={(e) => { e.stopPropagation(); onRevealOne(child.id); setOpen(false); }}
+                style={{ cursor: 'pointer' }}>
+                <rect x={menuX + 4} y={rowY} width={MENU_W - 8} height={ROW_H - 2} rx={5}
+                  fill="transparent" stroke="transparent" strokeWidth={0} />
+                {/* Hover effect via separate hover rect — SVG trick */}
+                <rect x={menuX + 4} y={rowY} width={MENU_W - 8} height={ROW_H - 2} rx={5}
+                  fill="white" fillOpacity={0} className="hover-row" />
+                <text x={menuX + 14} y={rowY + 12} fontSize={9} fill="white" opacity={0.75}
+                  style={{ userSelect:'none' }}>
+                  · {label}
+                </text>
+                <text x={menuX + 10} y={rowY + 12} fontSize={7} fill={borderColor}
+                  style={{ userSelect:'none' }}>
+                  ◉
+                </text>
               </g>
             );
           })}
-          {/* Reveal all */}
-          <g onClick={(e) => { e.stopPropagation(); onRevealAll(node.id); setOpen(false); }} style={{ cursor: 'pointer' }}>
-            <rect x={node.x + w/2 - 10} y={node.y - h/2 - 42} width={130} height={24} rx={6} fill="#1a1a30" stroke="#818cf8" strokeWidth={1} strokeOpacity={0.7} />
-            <text x={node.x + w/2 + 4} y={node.y - h/2 - 26} fontSize={9} fill="#818cf8" fontWeight="bold" style={{ userSelect:'none' }}>↑ Mostrar todos</text>
+
+          {/* Divider */}
+          <line x1={menuX + 8} y1={menuY + 4 + sorted.length * ROW_H} x2={menuX + MENU_W - 8} y2={menuY + 4 + sorted.length * ROW_H}
+            stroke="white" strokeOpacity={0.08} strokeWidth={1} />
+
+          {/* Show all button */}
+          <g onClick={(e) => { e.stopPropagation(); onRevealAll(node.id); setOpen(false); }}
+            style={{ cursor: 'pointer' }}>
+            <rect x={menuX + 4} y={menuY + 4 + sorted.length * ROW_H + 2} width={MENU_W - 8} height={ROW_H - 2} rx={5}
+              fill={borderColor} fillOpacity={0.08} />
+            <text x={menuX + MENU_W / 2} y={menuY + 4 + sorted.length * ROW_H + 14} textAnchor="middle"
+              fontSize={9} fontWeight="bold" fill={borderColor} style={{ userSelect:'none' }}>
+              Mostrar todos
+            </text>
           </g>
         </g>
       )}
