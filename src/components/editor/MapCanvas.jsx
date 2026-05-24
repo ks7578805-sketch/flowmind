@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Crosshair } from 'lucide-react';
+import CanvasGlows from './CanvasGlows';
 
 const NODE_STYLES = {
   center:    { bg: '#120808', border: '#e53e3e', w: 240, h: 130 },
@@ -139,7 +140,7 @@ function NodeContent({ node, style }) {
   );
 }
 
-function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu }) {
+function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onToggleChildren }) {
   const [hovered, setHovered] = useState(false);
   const style = getStyle(node);
   const { w, h } = style;
@@ -181,22 +182,32 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
       {isSelected && <rect x={node.x-w/2-3} y={node.y-h/2-3} width={w+6} height={h+6} rx={14} fill="none" stroke={style.border} strokeWidth={1.5} strokeOpacity={0.6} strokeDasharray="4 3" />}
       {isConnectingMode && <rect x={node.x-w/2-4} y={node.y-h/2-4} width={w+8} height={h+8} rx={15} fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 3" opacity={0.85} />}
       <NodeContent node={node} style={style} />
-      {/* Connect handles — both sides, discrete */}
+      {/* Connect handles — both sides, visible */}
       {hovered && !isConnectingMode && (
         <>
           {/* Right handle */}
           <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
-            <circle cx={node.x+w/2+12} cy={node.y} r={12} fill="transparent" />
-            <circle cx={node.x+w/2+12} cy={node.y} r={7} fill="#111" stroke="#4ade80" strokeWidth={1} strokeOpacity={0.7} />
-            <text x={node.x+w/2+12} y={node.y+3.5} textAnchor="middle" fontSize={10} fill="#4ade80" fillOpacity={0.85} style={{ userSelect:'none' }}>+</text>
+            <circle cx={node.x+w/2+16} cy={node.y} r={14} fill="transparent" />
+            <circle cx={node.x+w/2+16} cy={node.y} r={10} fill="#0a1a0a" stroke="#4ade80" strokeWidth={1.5} />
+            <text x={node.x+w/2+16} y={node.y+4} textAnchor="middle" fontSize={13} fill="#4ade80" fontWeight="bold" style={{ userSelect:'none' }}>+</text>
           </g>
           {/* Left handle */}
           <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
-            <circle cx={node.x-w/2-12} cy={node.y} r={12} fill="transparent" />
-            <circle cx={node.x-w/2-12} cy={node.y} r={7} fill="#111" stroke="#4ade80" strokeWidth={1} strokeOpacity={0.7} />
-            <text x={node.x-w/2-12} y={node.y+3.5} textAnchor="middle" fontSize={10} fill="#4ade80" fillOpacity={0.85} style={{ userSelect:'none' }}>+</text>
+            <circle cx={node.x-w/2-16} cy={node.y} r={14} fill="transparent" />
+            <circle cx={node.x-w/2-16} cy={node.y} r={10} fill="#0a1a0a" stroke="#4ade80" strokeWidth={1.5} />
+            <text x={node.x-w/2-16} y={node.y+4} textAnchor="middle" fontSize={13} fill="#4ade80" fontWeight="bold" style={{ userSelect:'none' }}>+</text>
           </g>
         </>
+      )}
+      {/* Toggle children button — shown on hover when node has children */}
+      {hovered && !isConnectingMode && node._hasChildren && (
+        <g onMouseDown={(e) => { e.stopPropagation(); onToggleChildren?.(node.id); }} style={{ cursor:'pointer' }}>
+          <circle cx={node.x} cy={node.y+h/2+16} r={14} fill="transparent" />
+          <circle cx={node.x} cy={node.y+h/2+16} r={10} fill="#0a0a1a" stroke="#6366f1" strokeWidth={1.5} />
+          <text x={node.x} y={node.y+h/2+20} textAnchor="middle" fontSize={13} fill="#6366f1" fontWeight="bold" style={{ userSelect:'none' }}>
+            {node._childrenHidden ? '+' : '−'}
+          </text>
+        </g>
       )}
     </g>
   );
@@ -226,8 +237,10 @@ function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onCont
   const midX = 0.125*x1 + 0.375*cp1x + 0.375*cp2x + 0.125*x2;
   const midY = (y1+y2)/2;
 
-  // Arrowhead angle
-  const angle = Math.atan2(y2-midY, x2-(x2+(goRight?-8:8))) * 180/Math.PI;
+  // Arrowhead: tangent at t=1 on the cubic bezier = direction from cp2 to end
+  const angle = Math.atan2(y2 - (y1+y2)/2*0.5 - y2*0.5, x2 - cp2x) * 180/Math.PI + (goRight ? 0 : 180);
+  // Simpler: direction of last segment (cp2 → end)
+  const arrowAngle = Math.atan2(y2 - ((y1+y2)/2), x2 - cp2x) * 180/Math.PI;
 
   const showTrash = hovered || isSelected;
 
@@ -255,10 +268,10 @@ function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onCont
         <path d={path} fill="none" stroke="white" strokeWidth={1} opacity={0.12}
           strokeDasharray="6 8" className="flow-line" strokeLinecap="round" />
       )}
-      {/* Arrowhead — hidden for arrow-only type (we draw a standalone arrow) */}
+      {/* Arrowhead — pointing at end node, hidden when no-arrow */}
       {lineType !== 'no-arrow' && (
-        <g transform={`translate(${x2},${y2}) rotate(${angle})`}>
-          <polygon points="-7,-3.5 0,0 -7,3.5" fill={color} opacity={0.9} />
+        <g transform={`translate(${x2},${y2}) rotate(${arrowAngle})`}>
+          <polygon points="-9,-4 0,0 -9,4" fill={color} opacity={0.95} />
         </g>
       )}
 
@@ -330,7 +343,8 @@ function Minimap({ nodes, transform, containerRef }) {
 // ─── MAIN CANVAS ─────────────────────────────────────────────────────────────
 export default function MapCanvas({
   nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
-  onAddConnection, onDeleteConnection, onDeleteNode, onUpdateConnection, svgRef: externalSvgRef, zoom, onZoomChange
+  onAddConnection, onDeleteConnection, onDeleteNode, onUpdateConnection,
+  onToggleChildren, svgRef: externalSvgRef, zoom, onZoomChange
 }) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
@@ -430,23 +444,35 @@ export default function MapCanvas({
     onDropNode?.(type, pos.x, pos.y);
   };
 
-  // Fit all nodes into view
+  // Fit all nodes into view — uses node width/height for accurate bounds
   const handleFitView = () => {
     if (!nodes.length || !containerRef.current) return;
     const { width: cw, height: ch } = containerRef.current.getBoundingClientRect();
-    const allX = nodes.map(n => n.x), allY = nodes.map(n => n.y);
-    const minX = Math.min(...allX) - 120, maxX = Math.max(...allX) + 120;
-    const minY = Math.min(...allY) - 80,  maxY = Math.max(...allY) + 80;
+    const padding = 80;
+    const allX = nodes.flatMap(n => {
+      const s = NODE_STYLES[n.element_type] || NODE_STYLES[n.type] || NODE_STYLES.leaf;
+      return [n.x - s.w/2, n.x + s.w/2];
+    });
+    const allY = nodes.flatMap(n => {
+      const s = NODE_STYLES[n.element_type] || NODE_STYLES[n.type] || NODE_STYLES.leaf;
+      return [n.y - s.h/2, n.y + s.h/2];
+    });
+    const minX = Math.min(...allX) - padding, maxX = Math.max(...allX) + padding;
+    const minY = Math.min(...allY) - padding, maxY = Math.max(...allY) + padding;
     const contentW = maxX - minX, contentH = maxY - minY;
-    const newScale = Math.min(cw/contentW, ch/contentH, 1);
-    const clampedScale = Math.min(newScale, 0.9); // target ~90%
-    const newX = cw/2 - (minX + contentW/2)*clampedScale;
-    const newY = ch/2 - (minY + contentH/2)*clampedScale;
-    setTransform({ x:newX, y:newY, scale:clampedScale });
-    onZoomChange?.(clampedScale);
+    const rawScale = Math.min(cw / contentW, ch / contentH);
+    const finalScale = Math.min(rawScale, 1.0); // max 100%
+    const newX = cw/2 - (minX + contentW/2) * finalScale;
+    const newY = ch/2 - (minY + contentH/2) * finalScale;
+    setTransform({ x: newX, y: newY, scale: finalScale });
+    onZoomChange?.(finalScale);
   };
 
-  const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+  // Enrich nodes with children metadata for toggle button
+  const nodeMap = Object.fromEntries(nodes.map(n => {
+    const hasChildren = connections.some(c => c.from === n.id);
+    return [n.id, { ...n, _hasChildren: hasChildren }];
+  }));
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden"
@@ -457,6 +483,8 @@ export default function MapCanvas({
       onDrop={handleDrop}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect='copy'; }}
     >
+      {/* Ambient glow effects background */}
+      <CanvasGlows editable />
       <style>{`
         @keyframes mapFadeIn{from{opacity:0}to{opacity:1}}
         @keyframes mapSlideLeft{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
@@ -513,6 +541,7 @@ export default function MapCanvas({
               isSelected={selectedNodeId===node.id}
               isConnectingMode={connectingFromId!==null && connectingFromId!==node.id}
               onStartConnect={(id) => setConnectingFromId(id)}
+              onToggleChildren={onToggleChildren}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, type:'node', nodeId:node.id }); }}
               onMouseDown={(e) => {
                 e.stopPropagation();

@@ -249,6 +249,36 @@ export default function Editor() {
     });
   };
 
+  // Toggle visibility of all descendants of a node
+  const handleToggleChildren = (nodeId) => {
+    setMapData(prev => {
+      // Find all descendant node ids (BFS)
+      const getDescendants = (id, nodes, conns) => {
+        const result = [];
+        const queue = [id];
+        while (queue.length) {
+          const cur = queue.shift();
+          const children = conns.filter(c => c.from === cur).map(c => c.to);
+          children.forEach(cid => { result.push(cid); queue.push(cid); });
+        }
+        return result;
+      };
+      const parentNode = prev.nodes.find(n => n.id === nodeId);
+      const nowHiding = !parentNode?._childrenHidden;
+      const descendants = getDescendants(nodeId, prev.nodes, prev.connections);
+      const next = {
+        ...prev,
+        nodes: prev.nodes.map(n => {
+          if (n.id === nodeId) return { ...n, _childrenHidden: nowHiding };
+          if (descendants.includes(n.id)) return { ...n, _hidden: nowHiding };
+          return n;
+        }),
+      };
+      pushHistory(next);
+      return next;
+    });
+  };
+
   const handleExportPNG = () => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -411,28 +441,34 @@ export default function Editor() {
         <ElementsPanel onAddNode={handleAddNode} />
 
         <div className="flex-1 relative">
-          {mapData && (
-            <MapCanvas
-              nodes={mapData.nodes || []}
-              connections={mapData.connections || []}
-              onSelectNode={setSelectedNode}
-              selectedNodeId={selectedNode?.id}
-              onDropNode={handleAddNode}
-              onAddConnection={handleAddConnection}
-              onDeleteConnection={handleDeleteConnection}
-              onUpdateConnection={handleUpdateConnection}
-              onDeleteNode={handleDeleteNode}
-              svgRef={svgRef}
-              zoom={zoom}
-              onZoomChange={setZoom}
-              onNodeMove={(nodeId, x, y) => {
-                setMapData(prev => ({
-                  ...prev,
-                  nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, x, y } : n)
-                }));
-              }}
-            />
-          )}
+          {mapData && (() => {
+            const visibleNodes = (mapData.nodes || []).filter(n => !n._hidden);
+            const visibleIds = new Set(visibleNodes.map(n => n.id));
+            const visibleConns = (mapData.connections || []).filter(c => visibleIds.has(c.from) && visibleIds.has(c.to));
+            return (
+              <MapCanvas
+                nodes={visibleNodes}
+                connections={visibleConns}
+                onSelectNode={setSelectedNode}
+                selectedNodeId={selectedNode?.id}
+                onDropNode={handleAddNode}
+                onAddConnection={handleAddConnection}
+                onDeleteConnection={handleDeleteConnection}
+                onUpdateConnection={handleUpdateConnection}
+                onDeleteNode={handleDeleteNode}
+                onToggleChildren={handleToggleChildren}
+                svgRef={svgRef}
+                zoom={zoom}
+                onZoomChange={setZoom}
+                onNodeMove={(nodeId, x, y) => {
+                  setMapData(prev => ({
+                    ...prev,
+                    nodes: prev.nodes.map(n => n.id === nodeId ? { ...n, x, y } : n)
+                  }));
+                }}
+              />
+            );
+          })()}
         </div>
 
         <InspectorPanel
