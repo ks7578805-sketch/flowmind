@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Crosshair } from 'lucide-react';
-import CanvasGlows from './CanvasGlows';
+import CanvasGlows, { DEFAULT_GLOWS } from './CanvasGlows';
 
 const NODE_STYLES = {
   center:    { bg: '#120808', border: '#e53e3e', w: 240, h: 130 },
@@ -140,7 +140,25 @@ function NodeContent({ node, style }) {
   );
 }
 
-function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onToggleChildren, onAddChild }) {
+// ─── "REVEAL HIDDEN" BADGE — shown on node when it has hidden children ────────
+function HiddenChildrenBadge({ node, onReveal }) {
+  const style = getStyle(node);
+  const { w, h } = style;
+  return (
+    <g onClick={(e) => { e.stopPropagation(); onReveal(node.id); }} style={{ cursor: 'pointer' }}>
+      {/* Hit area */}
+      <rect x={node.x + w/2 - 2} y={node.y - 14} width={36} height={28} rx={8} fill="transparent" />
+      {/* Badge */}
+      <rect x={node.x + w/2 + 2} y={node.y - 11} width={28} height={22} rx={7} fill="#0f0f1a" stroke="#6366f1" strokeWidth={1.5} />
+      {/* Arrow icon */}
+      <text x={node.x + w/2 + 16} y={node.y + 5} textAnchor="middle" fontSize={11} fill="#6366f1" style={{ userSelect:'none' }}>▶</text>
+      {/* Pulse ring */}
+      <rect x={node.x + w/2} y={node.y - 13} width={32} height={26} rx={9} fill="none" stroke="#6366f1" strokeWidth={1} strokeOpacity={0.3} strokeDasharray="3 3" />
+    </g>
+  );
+}
+
+function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onRevealChildren }) {
   const [hovered, setHovered] = useState(false);
   const style = getStyle(node);
   const { w, h } = style;
@@ -182,16 +200,15 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
       {isSelected && <rect x={node.x-w/2-3} y={node.y-h/2-3} width={w+6} height={h+6} rx={14} fill="none" stroke={style.border} strokeWidth={1.5} strokeOpacity={0.6} strokeDasharray="4 3" />}
       {isConnectingMode && <rect x={node.x-w/2-4} y={node.y-h/2-4} width={w+8} height={h+8} rx={15} fill="none" stroke="#22c55e" strokeWidth={2} strokeDasharray="5 3" opacity={0.85} />}
       <NodeContent node={node} style={style} />
-      {/* Connect handles — both sides, visible */}
+
+      {/* Connect handles — shown on hover */}
       {hovered && !isConnectingMode && (
         <>
-          {/* Right handle */}
           <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
             <circle cx={node.x+w/2+16} cy={node.y} r={14} fill="transparent" />
             <circle cx={node.x+w/2+16} cy={node.y} r={10} fill="#0a1a0a" stroke="#4ade80" strokeWidth={1.5} />
             <text x={node.x+w/2+16} y={node.y+4} textAnchor="middle" fontSize={13} fill="#4ade80" fontWeight="bold" style={{ userSelect:'none' }}>+</text>
           </g>
-          {/* Left handle */}
           <g onMouseDown={(e) => { e.stopPropagation(); onStartConnect(node.id); }} style={{ cursor:'crosshair' }}>
             <circle cx={node.x-w/2-16} cy={node.y} r={14} fill="transparent" />
             <circle cx={node.x-w/2-16} cy={node.y} r={10} fill="#0a1a0a" stroke="#4ade80" strokeWidth={1.5} />
@@ -199,29 +216,16 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
           </g>
         </>
       )}
-      {/* Toggle children / add child button — shown on hover */}
-      {hovered && !isConnectingMode && (
-        <g onMouseDown={(e) => {
-          e.stopPropagation();
-          if (node._hasChildren) {
-            onToggleChildren?.(node.id);
-          } else {
-            onAddChild?.(node.id);
-          }
-        }} style={{ cursor:'pointer' }}>
-          <circle cx={node.x} cy={node.y+h/2+16} r={14} fill="transparent" />
-          <circle cx={node.x} cy={node.y+h/2+16} r={10} fill="#0a0a1a" stroke="#6366f1" strokeWidth={1.5} />
-          <text x={node.x} y={node.y+h/2+20} textAnchor="middle" fontSize={13} fill="#6366f1" fontWeight="bold" style={{ userSelect:'none' }}>
-            {node._hasChildren && !node._childrenHidden ? '−' : '+'}
-          </text>
-        </g>
+
+      {/* Badge when this node has hidden children */}
+      {node._hasHiddenChildren && (
+        <HiddenChildrenBadge node={node} onReveal={onRevealChildren} />
       )}
     </g>
   );
 }
 
-// ─── CONNECTION LINE ──────────────────────────────────────────────────────────
-// Hover-to-show trash: thick invisible hit area always present; trash appears on hover OR selected
+// ─── CONNECTION LINE ───────────────────────────────────────────────────────────
 function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onContextMenu }) {
   const [hovered, setHovered] = useState(false);
   if (!from || !to) return null;
@@ -236,63 +240,43 @@ function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onCont
   const dx = Math.abs(x2-x1)*0.5;
   const path = `M ${x1} ${y1} C ${x1+(goRight?dx:-dx)} ${y1}, ${x2+(goRight?-dx:dx)} ${y2}, ${x2} ${y2}`;
   const color = conn?.custom_color || from.custom_color || '#e53e3e';
-  const lineStyle = conn?.line_style || 'solid'; // 'solid' | 'dashed' | 'dotted'
-  const lineType = conn?.line_type || 'curve'; // 'curve' | 'straight' | 'arrow-only'
+  const lineStyle = conn?.line_style || 'solid';
+  const lineType = conn?.line_type || 'curve';
 
-  // Midpoint t=0.5 on cubic bezier
   const cp1x = x1+(goRight?dx:-dx), cp2x = x2+(goRight?-dx:dx);
   const midX = 0.125*x1 + 0.375*cp1x + 0.375*cp2x + 0.125*x2;
   const midY = (y1+y2)/2;
-
-  // Arrowhead: tangent at t=1 on the cubic bezier = direction from cp2 to end
-  const angle = Math.atan2(y2 - (y1+y2)/2*0.5 - y2*0.5, x2 - cp2x) * 180/Math.PI + (goRight ? 0 : 180);
-  // Simpler: direction of last segment (cp2 → end)
   const arrowAngle = Math.atan2(y2 - ((y1+y2)/2), x2 - cp2x) * 180/Math.PI;
 
   const showTrash = hovered || isSelected;
 
   return (
-    <g
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Extra-wide invisible hit zone — catches "nearby" clicks, 40px wide */}
+    <g onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <path d={path} fill="none" stroke="transparent" strokeWidth={40} style={{ cursor:'pointer' }}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContextMenu(e); }}
       />
-      {/* Glow */}
       <path d={path} fill="none" stroke={color} strokeWidth={6} opacity={0.07} strokeLinecap="round" />
-      {/* Main line */}
       <path d={path} fill="none" stroke={color} strokeWidth={isSelected?2.5:1.8}
         opacity={isSelected?1:hovered?0.9:0.7} strokeLinecap="round"
         strokeDasharray={lineStyle==='dashed'?'10 6':lineStyle==='dotted'?'2 6':undefined}
         style={{ cursor:'pointer' }}
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
       />
-      {/* Animated flow dash — only on solid lines */}
       {lineStyle === 'solid' && (
         <path d={path} fill="none" stroke="white" strokeWidth={1} opacity={0.12}
           strokeDasharray="6 8" className="flow-line" strokeLinecap="round" />
       )}
-      {/* Arrowhead — pointing at end node, hidden when no-arrow */}
       {lineType !== 'no-arrow' && (
         <g transform={`translate(${x2},${y2}) rotate(${arrowAngle})`}>
           <polygon points="-9,-4 0,0 -9,4" fill={color} opacity={0.95} />
         </g>
       )}
-
-      {/* Trash: always visible on hover or selected — ONE CLICK deletes */}
       {showTrash && (
-        <g
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
+        <g onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
           onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(); }}
-          style={{ cursor:'pointer' }}
-        >
-          {/* Large hit area */}
+          style={{ cursor:'pointer' }}>
           <circle cx={midX} cy={midY} r={26} fill="transparent" />
-          {/* Button */}
           <circle cx={midX} cy={midY} r={14} fill="#1a0808" stroke="#e53e3e" strokeWidth={1.5} />
           <text x={midX} y={midY+5} textAnchor="middle" fontSize={14} fill="#e53e3e" style={{ userSelect:'none' }}>🗑</text>
         </g>
@@ -301,7 +285,7 @@ function ConnectionLine({ from, to, conn, isSelected, onSelect, onDelete, onCont
   );
 }
 
-// ─── MINIMAP ─────────────────────────────────────────────────────────────────
+// ─── MINIMAP ──────────────────────────────────────────────────────────────────
 function Minimap({ nodes, transform, containerRef }) {
   if (!nodes.length) return null;
   const mmW = 140, mmH = 90;
@@ -316,7 +300,6 @@ function Minimap({ nodes, transform, containerRef }) {
   const contentH = maxY - minY || 1;
   const sc = Math.min(mmW/contentW, mmH/contentH);
 
-  // Viewport rect in minimap coords
   let vpX=0, vpY=0, vpW=mmW, vpH=mmH;
   if (containerRef?.current) {
     const { width: cw, height: ch } = containerRef.current.getBoundingClientRect();
@@ -340,18 +323,19 @@ function Minimap({ nodes, transform, containerRef }) {
           const col = n.custom_color || s.border;
           return <rect key={n.id} x={nx-nw/2} y={ny-nh/2} width={nw} height={nh} rx={2} fill={col} opacity={0.55} />;
         })}
-        {/* Viewport rect */}
         <rect x={vpX} y={vpY} width={vpW} height={vpH} fill="white" fillOpacity={0.05} stroke="white" strokeOpacity={0.3} strokeWidth={1} rx={2} />
       </svg>
     </div>
   );
 }
 
-// ─── MAIN CANVAS ─────────────────────────────────────────────────────────────
+// ─── MAIN CANVAS ──────────────────────────────────────────────────────────────
 export default function MapCanvas({
   nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
   onAddConnection, onDeleteConnection, onDeleteNode, onUpdateConnection,
-  onToggleChildren, onAddChild, svgRef: externalSvgRef, zoom, onZoomChange
+  onHideNode, onRevealChildren,
+  glows, setGlows, showGlowPanel, setShowGlowPanel,
+  svgRef: externalSvgRef, zoom, onZoomChange
 }) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
@@ -361,7 +345,7 @@ export default function MapCanvas({
   const [connectingFromId, setConnectingFromId] = useState(null);
   const [selectedConnIdx, setSelectedConnIdx] = useState(null);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [contextMenu, setContextMenu] = useState(null); // { x, y, type: 'node'|'conn', id/idx }
+  const [contextMenu, setContextMenu] = useState(null);
   const svgRef = useRef(null);
   const containerRef = useRef(null);
 
@@ -451,7 +435,7 @@ export default function MapCanvas({
     onDropNode?.(type, pos.x, pos.y);
   };
 
-  // Fit all nodes into view — uses node width/height for accurate bounds
+  // Centralizar — sem limitar a 100%, apenas centraliza o conteúdo visível
   const handleFitView = () => {
     if (!nodes.length || !containerRef.current) return;
     const { width: cw, height: ch } = containerRef.current.getBoundingClientRect();
@@ -467,19 +451,22 @@ export default function MapCanvas({
     const minX = Math.min(...allX) - padding, maxX = Math.max(...allX) + padding;
     const minY = Math.min(...allY) - padding, maxY = Math.max(...allY) + padding;
     const contentW = maxX - minX, contentH = maxY - minY;
-    const rawScale = Math.min(cw / contentW, ch / contentH);
-    const finalScale = Math.min(rawScale, 1.0); // max 100%
+    // Fit to screen without capping at 100% so large maps scale properly
+    const finalScale = Math.min(cw / contentW, ch / contentH, 1.5);
     const newX = cw/2 - (minX + contentW/2) * finalScale;
     const newY = ch/2 - (minY + contentH/2) * finalScale;
     setTransform({ x: newX, y: newY, scale: finalScale });
     onZoomChange?.(finalScale);
   };
 
-  // Enrich nodes with children metadata for toggle button
-  const nodeMap = Object.fromEntries(nodes.map(n => {
-    const hasChildren = connections.some(c => c.from === n.id);
-    return [n.id, { ...n, _hasChildren: hasChildren }];
-  }));
+  // Enrich nodes with hidden-children metadata
+  const nodeMap = Object.fromEntries(nodes.map(n => [n.id, n]));
+  const enrichedNodes = nodes.map(n => {
+    const childIds = connections.filter(c => c.from === n.id).map(c => c.to);
+    const hasHiddenChildren = childIds.some(cid => !nodeMap[cid]); // child exists in connections but not visible
+    return { ...n, _hasHiddenChildren: hasHiddenChildren };
+  });
+  const enrichedMap = Object.fromEntries(enrichedNodes.map(n => [n.id, n]));
 
   return (
     <div ref={containerRef} className="w-full h-full relative overflow-hidden"
@@ -490,8 +477,9 @@ export default function MapCanvas({
       onDrop={handleDrop}
       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect='copy'; }}
     >
-      {/* Ambient glow effects background */}
-      <CanvasGlows editable />
+      {/* Static ambient glow layer */}
+      <CanvasGlows glows={glows} setGlows={setGlows} showPanel={showGlowPanel} setShowPanel={setShowGlowPanel} />
+
       <style>{`
         @keyframes mapFadeIn{from{opacity:0}to{opacity:1}}
         @keyframes mapSlideLeft{from{opacity:0;transform:translateX(-40px)}to{opacity:1;transform:translateX(0)}}
@@ -523,10 +511,9 @@ export default function MapCanvas({
       >
         <rect width="100%" height="100%" fill="transparent" />
         <g transform={`translate(${transform.x},${transform.y}) scale(${transform.scale})`}>
-          {/* Connections rendered first (below nodes) */}
           {connections.map((conn, i) => (
             <ConnectionLine key={i}
-              from={nodeMap[conn.from]} to={nodeMap[conn.to]} conn={conn}
+              from={enrichedMap[conn.from]} to={enrichedMap[conn.to]} conn={conn}
               isSelected={selectedConnIdx===i}
               onSelect={() => setSelectedConnIdx(selectedConnIdx===i ? null : i)}
               onDelete={() => { onDeleteConnection?.(i); setSelectedConnIdx(null); }}
@@ -534,22 +521,19 @@ export default function MapCanvas({
             />
           ))}
 
-          {/* Live wire */}
-          {connectingFromId && nodeMap[connectingFromId] && (() => {
-            const fn = nodeMap[connectingFromId];
+          {connectingFromId && enrichedMap[connectingFromId] && (() => {
+            const fn = enrichedMap[connectingFromId];
             const fs = NODE_STYLES[fn.element_type] || NODE_STYLES[fn.type] || NODE_STYLES.leaf;
             return <line x1={fn.x+fs.w/2} y1={fn.y} x2={mousePos.x} y2={mousePos.y}
               stroke="#22c55e" strokeWidth={1.5} strokeDasharray="5 4" opacity={0.8} />;
           })()}
 
-          {/* Nodes */}
-          {nodes.map(node => (
+          {enrichedNodes.map(node => (
             <Node3D key={node.id} node={node}
               isSelected={selectedNodeId===node.id}
               isConnectingMode={connectingFromId!==null && connectingFromId!==node.id}
               onStartConnect={(id) => setConnectingFromId(id)}
-              onToggleChildren={onToggleChildren}
-              onAddChild={onAddChild}
+              onRevealChildren={onRevealChildren}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, type:'node', nodeId:node.id }); }}
               onMouseDown={(e) => {
                 e.stopPropagation();
@@ -563,10 +547,9 @@ export default function MapCanvas({
         </g>
       </svg>
 
-      {/* Minimap — bottom left, always updated */}
       <Minimap nodes={nodes} transform={transform} containerRef={containerRef} />
 
-      {/* Fit view / center button */}
+      {/* Centralizar */}
       <button
         onClick={handleFitView}
         title="Centralizar mapa"
@@ -578,7 +561,7 @@ export default function MapCanvas({
 
       {/* Context menu — node */}
       {contextMenu?.type === 'node' && (
-        <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[170px]"
+        <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[180px]"
           style={{ left:contextMenu.x, top:contextMenu.y }} onClick={(e) => e.stopPropagation()}>
           <button className="w-full px-4 py-2 text-xs text-left text-white/90 hover:bg-white/8 flex items-center gap-2"
             onClick={() => { onSelectNode(nodes.find(n => n.id===contextMenu.nodeId)); setContextMenu(null); }}>
@@ -589,6 +572,10 @@ export default function MapCanvas({
             ➕ Conectar a outro bloco
           </button>
           <div className="border-t border-white/8 my-1" />
+          <button className="w-full px-4 py-2 text-xs text-left text-yellow-400 hover:bg-yellow-500/8 flex items-center gap-2"
+            onClick={() => { onHideNode?.(contextMenu.nodeId); setContextMenu(null); }}>
+            👁️ Ocultar bloco
+          </button>
           <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/8 flex items-center gap-2"
             onClick={() => { onDeleteNode?.(contextMenu.nodeId); setContextMenu(null); }}>
             🗑️ Deletar bloco
@@ -596,7 +583,7 @@ export default function MapCanvas({
         </div>
       )}
 
-      {/* Context menu — connection: positioned right at cursor */}
+      {/* Context menu — connection */}
       {contextMenu?.type === 'conn' && (
         <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[160px]"
           style={{ left: Math.min(contextMenu.x, window.innerWidth - 180), top: Math.min(contextMenu.y, window.innerHeight - 60) }}
@@ -608,7 +595,7 @@ export default function MapCanvas({
         </div>
       )}
 
-      {/* Connection style editor — shown when a connection is selected */}
+      {/* Connection style editor */}
       {selectedConnIdx !== null && connections[selectedConnIdx] && (
         <div className="absolute bottom-20 left-1/2 -translate-x-1/2 bg-[#161616] border border-white/10 rounded-xl px-4 py-2.5 flex items-center gap-4 z-20 shadow-2xl">
           <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Linha:</span>

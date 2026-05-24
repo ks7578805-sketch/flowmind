@@ -5,6 +5,7 @@ import { base44 } from '@/api/base44Client';
 import MapCanvas from '@/components/editor/MapCanvas.jsx';
 import ElementsPanel from '@/components/editor/ElementsPanel';
 import InspectorPanel from '@/components/editor/InspectorPanel';
+import { DEFAULT_GLOWS } from '@/components/editor/CanvasGlows';
 
 // Facebook Ads template from the original image
 const FACEBOOK_ADS_TEMPLATE = {
@@ -125,6 +126,8 @@ export default function Editor() {
   const [history, setHistory] = useState([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
   const [zoom, setZoom] = useState(1);
+  const [glows, setGlows] = useState(DEFAULT_GLOWS);
+  const [showGlowPanel, setShowGlowPanel] = useState(false);
   const svgRef = useRef(null);
 
   useEffect(() => {
@@ -244,6 +247,45 @@ export default function Editor() {
   const handleUpdateConnection = (index, patch) => {
     setMapData(prev => {
       const next = { ...prev, connections: prev.connections.map((c, i) => i === index ? { ...c, ...patch } : c) };
+      pushHistory(next);
+      return next;
+    });
+  };
+
+  // Ocultar um nó (e seus descendentes) — marcado como _hidden, pai recebe _hasHiddenChildren
+  const handleHideNode = (nodeId) => {
+    setMapData(prev => {
+      const getDescendants = (id, nodes, conns) => {
+        const result = [];
+        const queue = [id];
+        while (queue.length) {
+          const cur = queue.shift();
+          const children = conns.filter(c => c.from === cur).map(c => c.to);
+          children.forEach(cid => { result.push(cid); queue.push(cid); });
+        }
+        return result;
+      };
+      const descendants = getDescendants(nodeId, prev.nodes, prev.connections);
+      const toHide = new Set([nodeId, ...descendants]);
+      const next = {
+        ...prev,
+        nodes: prev.nodes.map(n => toHide.has(n.id) ? { ...n, _hidden: true } : n),
+      };
+      pushHistory(next);
+      return next;
+    });
+    setSelectedNode(null);
+  };
+
+  // Revelar filhos ocultos de um nó
+  const handleRevealChildren = (nodeId) => {
+    setMapData(prev => {
+      // Apenas filhos diretos imediatos
+      const directChildIds = new Set(prev.connections.filter(c => c.from === nodeId).map(c => c.to));
+      const next = {
+        ...prev,
+        nodes: prev.nodes.map(n => directChildIds.has(n.id) ? { ...n, _hidden: false } : n),
+      };
       pushHistory(next);
       return next;
     });
@@ -464,13 +506,15 @@ export default function Editor() {
 
       {/* Editor body */}
       <div className="flex flex-1 overflow-hidden">
-        <ElementsPanel onAddNode={handleAddNode} />
+        <ElementsPanel onAddNode={handleAddNode} onOpenGlows={() => setShowGlowPanel(v => !v)} />
 
         <div className="flex-1 relative">
           {mapData && (() => {
             const visibleNodes = (mapData.nodes || []).filter(n => !n._hidden);
             const visibleIds = new Set(visibleNodes.map(n => n.id));
-            const visibleConns = (mapData.connections || []).filter(c => visibleIds.has(c.from) && visibleIds.has(c.to));
+            // Pass ALL connections where "from" is visible (even if "to" is hidden)
+            // so MapCanvas can detect which nodes have hidden children
+            const visibleConns = (mapData.connections || []).filter(c => visibleIds.has(c.from));
             return (
               <MapCanvas
                 nodes={visibleNodes}
@@ -482,8 +526,12 @@ export default function Editor() {
                 onDeleteConnection={handleDeleteConnection}
                 onUpdateConnection={handleUpdateConnection}
                 onDeleteNode={handleDeleteNode}
-                onToggleChildren={handleToggleChildren}
-                onAddChild={handleAddChild}
+                onHideNode={handleHideNode}
+                onRevealChildren={handleRevealChildren}
+                glows={glows}
+                setGlows={setGlows}
+                showGlowPanel={showGlowPanel}
+                setShowGlowPanel={setShowGlowPanel}
                 svgRef={svgRef}
                 zoom={zoom}
                 onZoomChange={setZoom}
