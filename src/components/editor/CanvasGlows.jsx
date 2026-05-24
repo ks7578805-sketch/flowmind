@@ -13,7 +13,7 @@ const GLOW_COLORS = [
 ];
 
 // Exported so ElementsPanel can trigger the panel
-export default function CanvasGlows({ glows, setGlows, showPanel, setShowPanel }) {
+export default function CanvasGlows({ glows = [], setGlows, showPanel, setShowPanel }) {
   const [selected, setSelected] = useState(null);
 
   const addGlow = () => {

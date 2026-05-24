@@ -71,6 +71,10 @@ export default function Apresentacao() {
             connections={mapData.connections || []}
             onSelectNode={() => {}}
             selectedNodeId={null}
+            glows={mapData.glows || []}
+            setGlows={() => {}}
+            showGlowPanel={false}
+            setShowGlowPanel={() => {}}
           />
         ) : (
           <div className="flex items-center justify-center h-full">
