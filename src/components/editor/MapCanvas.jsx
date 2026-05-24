@@ -616,7 +616,7 @@ export default function MapCanvas({
               isSelected={selectedConnIdx===i}
               onSelect={() => setSelectedConnIdx(selectedConnIdx===i ? null : i)}
               onDelete={() => { onDeleteConnection?.(i); setSelectedConnIdx(null); }}
-              onContextMenu={(e) => setContextMenu({ x:e.clientX, y:e.clientY, type:'conn', idx:i })}
+              onContextMenu={(e) => { const rect = containerRef.current?.getBoundingClientRect(); setContextMenu({ x:e.clientX-(rect?.left||0), y:e.clientY-(rect?.top||0), type:'conn', idx:i }); }}
             />
           ))}
 
@@ -634,7 +634,7 @@ export default function MapCanvas({
               onStartConnect={(id) => setConnectingFromId(id)}
               onRevealOne={onRevealOne}
               onRevealAll={onRevealChildren}
-              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, type:'node', nodeId:node.id }); }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); const rect = containerRef.current?.getBoundingClientRect(); setContextMenu({ x:e.clientX-(rect?.left||0), y:e.clientY-(rect?.top||0), type:'node', nodeId:node.id }); }}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 const pos = screenToCanvas(e.clientX, e.clientY);
@@ -686,7 +686,7 @@ export default function MapCanvas({
       {/* Context menu — connection */}
       {contextMenu?.type === 'conn' && (
         <div className="absolute z-50 bg-[#161616] border border-white/10 rounded-xl shadow-2xl py-1.5 min-w-[160px]"
-          style={{ left: Math.min(contextMenu.x, window.innerWidth - 180), top: Math.min(contextMenu.y, window.innerHeight - 60) }}
+          style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={(e) => e.stopPropagation()}>
           <button className="w-full px-4 py-2 text-xs text-left text-red-400 hover:bg-red-500/10 flex items-center gap-2"
             onClick={() => { onDeleteConnection?.(contextMenu.idx); setSelectedConnIdx(null); setContextMenu(null); }}>
