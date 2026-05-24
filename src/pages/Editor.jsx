@@ -249,6 +249,32 @@ export default function Editor() {
     });
   };
 
+  // Add a child node directly from the canvas button
+  const handleAddChild = (parentId) => {
+    const parent = mapData.nodes.find(n => n.id === parentId);
+    if (!parent) return;
+    const newNode = {
+      id: `node_${Date.now()}`,
+      title: 'Novo Tópico',
+      description: '',
+      type: 'leaf',
+      element_type: 'text',
+      x: parent.x + 240,
+      y: parent.y + (Math.random() - 0.5) * 120,
+      parent_id: parentId,
+      expanded: true,
+    };
+    setMapData(prev => {
+      const next = {
+        nodes: [...prev.nodes, newNode],
+        connections: [...prev.connections, { from: parentId, to: newNode.id }],
+      };
+      pushHistory(next);
+      return next;
+    });
+    setSelectedNode(newNode);
+  };
+
   // Toggle visibility of all descendants of a node
   const handleToggleChildren = (nodeId) => {
     setMapData(prev => {
@@ -457,6 +483,7 @@ export default function Editor() {
                 onUpdateConnection={handleUpdateConnection}
                 onDeleteNode={handleDeleteNode}
                 onToggleChildren={handleToggleChildren}
+                onAddChild={handleAddChild}
                 svgRef={svgRef}
                 zoom={zoom}
                 onZoomChange={setZoom}

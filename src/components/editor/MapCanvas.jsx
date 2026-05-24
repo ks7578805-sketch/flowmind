@@ -140,7 +140,7 @@ function NodeContent({ node, style }) {
   );
 }
 
-function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onToggleChildren }) {
+function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onStartConnect, onContextMenu, onToggleChildren, onAddChild }) {
   const [hovered, setHovered] = useState(false);
   const style = getStyle(node);
   const { w, h } = style;
@@ -199,13 +199,20 @@ function Node3D({ node, isSelected, isConnectingMode, onMouseDown, onClick, onSt
           </g>
         </>
       )}
-      {/* Toggle children button — shown on hover when node has children */}
-      {hovered && !isConnectingMode && node._hasChildren && (
-        <g onMouseDown={(e) => { e.stopPropagation(); onToggleChildren?.(node.id); }} style={{ cursor:'pointer' }}>
+      {/* Toggle children / add child button — shown on hover */}
+      {hovered && !isConnectingMode && (
+        <g onMouseDown={(e) => {
+          e.stopPropagation();
+          if (node._hasChildren) {
+            onToggleChildren?.(node.id);
+          } else {
+            onAddChild?.(node.id);
+          }
+        }} style={{ cursor:'pointer' }}>
           <circle cx={node.x} cy={node.y+h/2+16} r={14} fill="transparent" />
           <circle cx={node.x} cy={node.y+h/2+16} r={10} fill="#0a0a1a" stroke="#6366f1" strokeWidth={1.5} />
           <text x={node.x} y={node.y+h/2+20} textAnchor="middle" fontSize={13} fill="#6366f1" fontWeight="bold" style={{ userSelect:'none' }}>
-            {node._childrenHidden ? '+' : '−'}
+            {node._hasChildren && !node._childrenHidden ? '−' : '+'}
           </text>
         </g>
       )}
@@ -344,7 +351,7 @@ function Minimap({ nodes, transform, containerRef }) {
 export default function MapCanvas({
   nodes, connections, onSelectNode, selectedNodeId, onDropNode, onNodeMove,
   onAddConnection, onDeleteConnection, onDeleteNode, onUpdateConnection,
-  onToggleChildren, svgRef: externalSvgRef, zoom, onZoomChange
+  onToggleChildren, onAddChild, svgRef: externalSvgRef, zoom, onZoomChange
 }) {
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isPanning, setIsPanning] = useState(false);
@@ -542,6 +549,7 @@ export default function MapCanvas({
               isConnectingMode={connectingFromId!==null && connectingFromId!==node.id}
               onStartConnect={(id) => setConnectingFromId(id)}
               onToggleChildren={onToggleChildren}
+              onAddChild={onAddChild}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x:e.clientX, y:e.clientY, type:'node', nodeId:node.id }); }}
               onMouseDown={(e) => {
                 e.stopPropagation();
